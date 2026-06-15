@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AWS_REGION: eu-central-1          # Frankfurt
-  NODE_VERSION: "20"
+  AWS_REGION: eu-central-1 # Frankfurt
+  NODE_VERSION: "22" # Node 24 runner-compatible LTS
   PYTHON_VERSION: "3.12"
   CDK_APP_DIR: infrastructure
 
@@ -31,6 +31,8 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          # Tell setup-python exactly where the requirements file lives
+          cache-dependency-path: requirements-test.txt
 
       - name: Install test dependencies
         run: pip install -r requirements-test.txt
@@ -53,7 +55,7 @@ jobs:
             --cov-fail-under=80
 
   # ────────────────────────────────────────────────────────────────
-  # JOB 2 — CDK synth (validates the TypeScript compiles + stack is valid)
+  # JOB 2 — CDK synth (validates TypeScript compiles + stack is valid)
   # ────────────────────────────────────────────────────────────────
   synth:
     name: CDK synth
@@ -80,7 +82,7 @@ jobs:
           CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
           CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
-          CUR_BUCKET_NAME: ${{ secrets.CUR_BUCKET_NAME }}   # optional
+          CUR_BUCKET_NAME: ${{ secrets.CUR_BUCKET_NAME }}
         run: npx cdk synth --quiet
 
       - name: Upload CDK cloud assembly
@@ -91,13 +93,13 @@ jobs:
           retention-days: 7
 
   # ────────────────────────────────────────────────────────────────
-  # JOB 3 — Deploy to AWS (push to main only, after synth passes)
+  # JOB 3 — Deploy to AWS
   # ────────────────────────────────────────────────────────────────
   deploy:
     name: CDK deploy
     runs-on: ubuntu-latest
     needs: [test, synth]
-    environment: production        # requires manual approval if configured in GitHub
+    environment: production
     defaults:
       run:
         working-directory: ${{ env.CDK_APP_DIR }}
@@ -121,8 +123,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Bootstrap only if this is the first deploy or the bootstrap version is outdated.
-      # Safe to run every time — it's idempotent.
       - name: CDK bootstrap
         env:
           CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
@@ -161,14 +161,12 @@ jobs:
           retention-days: 30
 
   # ────────────────────────────────────────────────────────────────
-  # JOB 4 — Seed price table (only if prices file changed, or on first deploy)
+  # JOB 4 — Seed price table (runs when seed file changes)
   # ────────────────────────────────────────────────────────────────
   seed-prices:
     name: Seed price table
     runs-on: ubuntu-latest
     needs: deploy
-    # Only re-seed when the price seed file itself changes
-    # Remove this if condition to always re-seed (idempotent but slower)
     if: |
       contains(github.event.commits[*].modified, 'scripts/seed_prices.py') ||
       contains(github.event.commits[*].added, 'scripts/seed_prices.py')
