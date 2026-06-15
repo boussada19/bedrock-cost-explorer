@@ -1,0 +1,39 @@
+# CDK
+infrastructure/cdk.out/
+infrastructure/dist/
+infrastructure/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Environment / secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CDK outputs (written by deploy workflow — not source)
+cdk-outputs.json

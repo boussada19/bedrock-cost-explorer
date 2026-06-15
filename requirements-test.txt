@@ -1,0 +1,9 @@
+boto3>=1.34.0
+botocore>=1.34.0
+# moto 4.x avoids the cryptography>=42 build-from-source requirement
+# that breaks on 32-bit Windows (no OpenSSL). Use 4.2.14 locally;
+# CI runs 64-bit Linux so moto 5.x works fine there.
+moto[dynamodb,sqs,sns,s3]==4.2.14
+cryptography==41.0.7
+pytest>=8.0.0
+pytest-cov>=5.0.0

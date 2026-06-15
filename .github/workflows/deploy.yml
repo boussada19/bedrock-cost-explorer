@@ -1,0 +1,197 @@
+name: Deploy — Bedrock Cost Explorer
+
+on:
+  push:
+    branches:
+      - main
+
+# Only one deploy runs at a time; a new push cancels an in-progress one
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: eu-central-1          # Frankfurt
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.12"
+  CDK_APP_DIR: infrastructure
+
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  # JOB 1 — Python tests
+  # ────────────────────────────────────────────────────────────────
+  test:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install test dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Run tests
+        env:
+          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing
+          EVENTS_TABLE: bedrock_events
+          PRICE_TABLE: bedrock_price_table
+          RECONCILIATION_TABLE: bedrock_reconciliation_runs
+          COST_ENRICHMENT_QUEUE_URL: https://sqs.eu-central-1.amazonaws.com/123456789012/bedrock-cost-enrichment
+          ALERT_TOPIC_ARN: arn:aws:sns:eu-central-1:123456789012:bedrock-cost-alerts
+        run: |
+          pytest tests/ -v --tb=short \
+            --cov=lambdas \
+            --cov=sdk/python \
+            --cov-report=term-missing \
+            --cov-fail-under=80
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 2 — CDK synth (validates the TypeScript compiles + stack is valid)
+  # ────────────────────────────────────────────────────────────────
+  synth:
+    name: CDK synth
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: ${{ env.CDK_APP_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.CDK_APP_DIR }}/package-lock.json
+
+      - name: Install CDK dependencies
+        run: npm ci
+
+      - name: CDK synth (validate stack)
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          CUR_BUCKET_NAME: ${{ secrets.CUR_BUCKET_NAME }}   # optional
+        run: npx cdk synth --quiet
+
+      - name: Upload CDK cloud assembly
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-assembly
+          path: ${{ env.CDK_APP_DIR }}/cdk.out
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 3 — Deploy to AWS (push to main only, after synth passes)
+  # ────────────────────────────────────────────────────────────────
+  deploy:
+    name: CDK deploy
+    runs-on: ubuntu-latest
+    needs: [test, synth]
+    environment: production        # requires manual approval if configured in GitHub
+    defaults:
+      run:
+        working-directory: ${{ env.CDK_APP_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.CDK_APP_DIR }}/package-lock.json
+
+      - name: Install CDK dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Bootstrap only if this is the first deploy or the bootstrap version is outdated.
+      # Safe to run every time — it's idempotent.
+      - name: CDK bootstrap
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          CUR_BUCKET_NAME: ${{ secrets.CUR_BUCKET_NAME }}
+        run: |
+          npx cdk bootstrap \
+            aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }} \
+            --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
+
+      - name: CDK deploy
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          CUR_BUCKET_NAME: ${{ secrets.CUR_BUCKET_NAME }}
+        run: |
+          npx cdk deploy BedrockCostExplorer \
+            --require-approval never \
+            --outputs-file cdk-outputs.json \
+            --progress events
+
+      - name: Show stack outputs
+        run: |
+          echo "### Stack outputs" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat cdk-outputs.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload stack outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-outputs
+          path: ${{ env.CDK_APP_DIR }}/cdk-outputs.json
+          retention-days: 30
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 4 — Seed price table (only if prices file changed, or on first deploy)
+  # ────────────────────────────────────────────────────────────────
+  seed-prices:
+    name: Seed price table
+    runs-on: ubuntu-latest
+    needs: deploy
+    # Only re-seed when the price seed file itself changes
+    # Remove this if condition to always re-seed (idempotent but slower)
+    if: |
+      contains(github.event.commits[*].modified, 'scripts/seed_prices.py') ||
+      contains(github.event.commits[*].added, 'scripts/seed_prices.py')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install boto3
+        run: pip install boto3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Seed price table
+        run: |
+          python scripts/seed_prices.py \
+            --table bedrock_price_table \
+            --region ${{ env.AWS_REGION }}
