@@ -15,19 +15,12 @@ import { Construct } from "constructs";
 
 export interface BedrockCostExplorerProps extends cdk.StackProps {
   alertEmail: string;
-  /** Retention period for raw events in days. Default: 90 */
   eventRetentionDays?: number;
-  /**
-   * S3 bucket name where AWS drops the Cost and Usage Report.
-   * If undefined, the reconciliation Lambda is deployed but skipped at runtime.
-   */
   curBucketName?: string;
-  /** Optional: tag all resources for cost allocation */
   costAllocationTags?: Record<string, string>;
 }
 
 export class BedrockCostExplorerStack extends cdk.Stack {
-  /** Expose table names for cross-stack references or integration tests */
   public readonly eventsTableName: string;
   public readonly priceTableName: string;
   public readonly ingestApiUrl: string;
@@ -37,9 +30,7 @@ export class BedrockCostExplorerStack extends cdk.Stack {
 
     const eventRetentionDays = props.eventRetentionDays ?? 90;
 
-    // ─────────────────────────────────────────────
-    // DYNAMODB TABLES
-    // ─────────────────────────────────────────────
+    // ── DynamoDB tables ────────────────────────────────────────────
 
     const eventsTable = new dynamodb.Table(this, "BedrockEventsTable", {
       tableName: "bedrock_events",
@@ -49,18 +40,16 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       timeToLiveAttribute: "ttl",
       pointInTimeRecovery: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
-      stream: dynamodb.StreamViewType.NEW_IMAGE, // for future Kinesis Firehose export
+      stream: dynamodb.StreamViewType.NEW_IMAGE,
     });
 
-    // GSIs for dashboard query patterns
-    const gsiConfig = [
-      { name: "gsi_agent_time", pk: "agent_id" },
-      { name: "gsi_user_time", pk: "user_id" },
-      { name: "gsi_app_time", pk: "application_id" },
-      { name: "gsi_model_time", pk: "model_id" },
-      { name: "gsi_account_time", pk: "account_id" }, // org-ready
-    ];
-    for (const gsi of gsiConfig) {
+    for (const gsi of [
+      { name: "gsi_agent_time",   pk: "agent_id" },
+      { name: "gsi_user_time",    pk: "user_id" },
+      { name: "gsi_app_time",     pk: "application_id" },
+      { name: "gsi_model_time",   pk: "model_id" },
+      { name: "gsi_account_time", pk: "account_id" },
+    ]) {
       eventsTable.addGlobalSecondaryIndex({
         indexName: gsi.name,
         partitionKey: { name: gsi.pk, type: dynamodb.AttributeType.STRING },
@@ -78,29 +67,20 @@ export class BedrockCostExplorerStack extends cdk.Stack {
     });
     priceTable.addGlobalSecondaryIndex({
       indexName: "gsi_active_prices",
-      partitionKey: {
-        name: "effective_until",
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: { name: "model_id", type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: "effective_until", type: dynamodb.AttributeType.STRING },
+      sortKey:      { name: "model_id",        type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    const reconciliationTable = new dynamodb.Table(
-      this,
-      "BedrockReconciliationTable",
-      {
-        tableName: "bedrock_reconciliation_runs",
-        partitionKey: { name: "PK", type: dynamodb.AttributeType.STRING },
-        sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
-        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
-      }
-    );
+    const reconciliationTable = new dynamodb.Table(this, "BedrockReconciliationTable", {
+      tableName: "bedrock_reconciliation_runs",
+      partitionKey: { name: "PK", type: dynamodb.AttributeType.STRING },
+      sortKey:      { name: "SK", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
 
-    // ─────────────────────────────────────────────
-    // SQS: async cost enrichment queue
-    // ─────────────────────────────────────────────
+    // ── SQS ───────────────────────────────────────────────────────
 
     const costEnrichmentDlq = new sqs.Queue(this, "CostEnrichmentDlq", {
       queueName: "bedrock-cost-enrichment-dlq",
@@ -110,245 +90,197 @@ export class BedrockCostExplorerStack extends cdk.Stack {
     const costEnrichmentQueue = new sqs.Queue(this, "CostEnrichmentQueue", {
       queueName: "bedrock-cost-enrichment",
       visibilityTimeout: cdk.Duration.seconds(30),
-      deadLetterQueue: {
-        queue: costEnrichmentDlq,
-        maxReceiveCount: 3,
-      },
+      deadLetterQueue: { queue: costEnrichmentDlq, maxReceiveCount: 3 },
     });
 
-    // ─────────────────────────────────────────────
-    // SNS: alerts
-    // ─────────────────────────────────────────────
+    // ── SNS ───────────────────────────────────────────────────────
 
     const alertTopic = new sns.Topic(this, "BedrockCostAlerts", {
       topicName: "bedrock-cost-alerts",
       displayName: "Bedrock Cost Explorer Alerts",
     });
-    alertTopic.addSubscription(
-      new subscriptions.EmailSubscription(props.alertEmail)
-    );
+    alertTopic.addSubscription(new subscriptions.EmailSubscription(props.alertEmail));
 
-    // ─────────────────────────────────────────────
-    // LAMBDA: common environment & layer
-    // ─────────────────────────────────────────────
+    // ── Shared Lambda config ──────────────────────────────────────
+    //
+    // Using a helper function rather than a Partial<> spread so TypeScript
+    // knows `runtime` is always Runtime (not Runtime | undefined).
 
     const commonEnv: Record<string, string> = {
-      EVENTS_TABLE: eventsTable.tableName,
-      PRICE_TABLE: priceTable.tableName,
-      RECONCILIATION_TABLE: reconciliationTable.tableName,
+      EVENTS_TABLE:              eventsTable.tableName,
+      PRICE_TABLE:               priceTable.tableName,
+      RECONCILIATION_TABLE:      reconciliationTable.tableName,
       COST_ENRICHMENT_QUEUE_URL: costEnrichmentQueue.queueUrl,
-      ALERT_TOPIC_ARN: alertTopic.topicArn,
-      EVENT_RETENTION_DAYS: String(eventRetentionDays),
-      POWERTOOLS_SERVICE_NAME: "bedrock-cost-explorer",
-      LOG_LEVEL: "INFO",
+      ALERT_TOPIC_ARN:           alertTopic.topicArn,
+      EVENT_RETENTION_DAYS:      String(eventRetentionDays),
+      POWERTOOLS_SERVICE_NAME:   "bedrock-cost-explorer",
+      LOG_LEVEL:                 "INFO",
     };
-
     if (props.curBucketName) {
       commonEnv["CUR_BUCKET"] = props.curBucketName;
     }
 
-    const lambdaDefaults: Partial<lambda.FunctionProps> = {
-      runtime: lambda.Runtime.PYTHON_3_12,
-      memorySize: 256,
-      timeout: cdk.Duration.seconds(30),
+    /** Returns fully-typed FunctionProps with all required fields present. */
+    const fn = (overrides: Omit<lambda.FunctionProps, "runtime" | "environment" | "logRetention">): lambda.FunctionProps => ({
+      runtime:      lambda.Runtime.PYTHON_3_12,
+      environment:  commonEnv,
       logRetention: logs.RetentionDays.ONE_MONTH,
-      environment: commonEnv,
-    };
-
-    // ─────────────────────────────────────────────
-    // LAMBDA: ingest (hot path — keep it lean)
-    // ─────────────────────────────────────────────
-
-    const ingestLambda = new lambda.Function(this, "IngestLambda", {
-      ...lambdaDefaults,
-      functionName: "bedrock-cost-ingest",
-      code: lambda.Code.fromAsset("../lambdas/ingest"),
-      handler: "handler.lambda_handler",
-      memorySize: 128, // ingest is lightweight; write + queue only
-      timeout: cdk.Duration.seconds(10),
+      memorySize:   256,
+      timeout:      cdk.Duration.seconds(30),
+      ...overrides,
     });
+
+    // ── Lambda: ingest ────────────────────────────────────────────
+
+    const ingestLambda = new lambda.Function(this, "IngestLambda", fn({
+      functionName: "bedrock-cost-ingest",
+      code:         lambda.Code.fromAsset("../lambdas/ingest"),
+      handler:      "handler.lambda_handler",
+      memorySize:   128,
+      timeout:      cdk.Duration.seconds(10),
+    }));
     eventsTable.grantWriteData(ingestLambda);
     costEnrichmentQueue.grantSendMessages(ingestLambda);
 
-    // ─────────────────────────────────────────────
-    // LAMBDA: cost compute (enriches events async)
-    // ─────────────────────────────────────────────
+    // ── Lambda: cost compute ──────────────────────────────────────
 
-    const costComputeLambda = new lambda.Function(this, "CostComputeLambda", {
-      ...lambdaDefaults,
-      functionName: "bedrock-cost-compute",
-      code: lambda.Code.fromAsset("../lambdas/cost_compute"),
-      handler: "handler.lambda_handler",
-      reservedConcurrentExecutions: 10, // throttle to protect DynamoDB write capacity
-    });
+    const costComputeLambda = new lambda.Function(this, "CostComputeLambda", fn({
+      functionName:                "bedrock-cost-compute",
+      code:                        lambda.Code.fromAsset("../lambdas/cost_compute"),
+      handler:                     "handler.lambda_handler",
+      reservedConcurrentExecutions: 10,
+    }));
     eventsTable.grantReadWriteData(costComputeLambda);
     priceTable.grantReadData(costComputeLambda);
-    costComputeLambda.addEventSource(
-      new SqsEventSource(costEnrichmentQueue, {
-        batchSize: 10,
-        maxBatchingWindow: cdk.Duration.seconds(5),
-      })
-    );
+    costComputeLambda.addEventSource(new SqsEventSource(costEnrichmentQueue, {
+      batchSize:          10,
+      maxBatchingWindow:  cdk.Duration.seconds(5),
+    }));
 
-    // ─────────────────────────────────────────────
-    // LAMBDA: backfill (CloudWatch secondary path)
-    // ─────────────────────────────────────────────
+    // ── Lambda: backfill ──────────────────────────────────────────
 
-    const backfillLambda = new lambda.Function(this, "BackfillLambda", {
-      ...lambdaDefaults,
+    const backfillLambda = new lambda.Function(this, "BackfillLambda", fn({
       functionName: "bedrock-cost-backfill",
-      code: lambda.Code.fromAsset("../lambdas/backfill"),
-      handler: "handler.lambda_handler",
-      timeout: cdk.Duration.minutes(5),
-      memorySize: 512,
-    });
+      code:         lambda.Code.fromAsset("../lambdas/backfill"),
+      handler:      "handler.lambda_handler",
+      timeout:      cdk.Duration.minutes(5),
+      memorySize:   512,
+    }));
     eventsTable.grantReadWriteData(backfillLambda);
     priceTable.grantReadData(backfillLambda);
     costEnrichmentQueue.grantSendMessages(backfillLambda);
-    backfillLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: [
-          "logs:FilterLogEvents",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams",
-        ],
-        resources: ["*"], // CloudWatch Logs for Bedrock model invocation logs
-      })
-    );
-    backfillLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ["bedrock:GetModelInvocationLoggingConfiguration"],
-        resources: ["*"],
-      })
-    );
+    backfillLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect:    iam.Effect.ALLOW,
+      actions:   ["logs:FilterLogEvents", "logs:DescribeLogGroups", "logs:DescribeLogStreams"],
+      resources: ["*"],
+    }));
+    backfillLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect:    iam.Effect.ALLOW,
+      actions:   ["bedrock:GetModelInvocationLoggingConfiguration"],
+      resources: ["*"],
+    }));
 
-    // Backfill runs every hour to catch missed events
     const backfillRule = new events.Rule(this, "BackfillSchedule", {
-      schedule: events.Schedule.rate(cdk.Duration.hours(1)),
+      schedule:    events.Schedule.rate(cdk.Duration.hours(1)),
       description: "Trigger backfill Lambda to reconcile CloudWatch vs wrapper events",
     });
     backfillRule.addTarget(new targets.LambdaFunction(backfillLambda));
 
-    // ─────────────────────────────────────────────
-    // LAMBDA: CUR reconciliation (daily)
-    // ─────────────────────────────────────────────
+    // ── Lambda: reconcile ─────────────────────────────────────────
 
-    const reconcileLambda = new lambda.Function(this, "ReconcileLambda", {
-      ...lambdaDefaults,
+    const reconcileLambda = new lambda.Function(this, "ReconcileLambda", fn({
       functionName: "bedrock-cost-reconcile",
-      code: lambda.Code.fromAsset("../lambdas/reconcile"),
-      handler: "handler.lambda_handler",
-      timeout: cdk.Duration.minutes(15),
-      memorySize: 1024, // CUR processing is memory-intensive
-    });
+      code:         lambda.Code.fromAsset("../lambdas/reconcile"),
+      handler:      "handler.lambda_handler",
+      timeout:      cdk.Duration.minutes(15),
+      memorySize:   1024,
+    }));
     eventsTable.grantReadData(reconcileLambda);
     reconciliationTable.grantReadWriteData(reconcileLambda);
     alertTopic.grantPublish(reconcileLambda);
 
     if (props.curBucketName) {
-      const curBucket = s3.Bucket.fromBucketName(
-        this,
-        "CurBucket",
-        props.curBucketName
-      );
-      curBucket.grantRead(reconcileLambda);
+      s3.Bucket.fromBucketName(this, "CurBucket", props.curBucketName)
+               .grantRead(reconcileLambda);
     }
 
-    // Runs at 06:00 UTC daily (after CUR is typically available)
     const reconcileRule = new events.Rule(this, "ReconcileSchedule", {
-      schedule: events.Schedule.cron({ hour: "6", minute: "0" }),
+      schedule:    events.Schedule.cron({ hour: "6", minute: "0" }),
       description: "Daily CUR vs computed cost reconciliation",
     });
     reconcileRule.addTarget(new targets.LambdaFunction(reconcileLambda));
 
-    // ─────────────────────────────────────────────
-    // LAMBDA: query API (dashboard read layer)
-    // ─────────────────────────────────────────────
+    // ── Lambda: query API ─────────────────────────────────────────
 
-    const queryLambda = new lambda.Function(this, "QueryLambda", {
-      ...lambdaDefaults,
+    const queryLambda = new lambda.Function(this, "QueryLambda", fn({
       functionName: "bedrock-cost-query",
-      code: lambda.Code.fromAsset("../lambdas/query_api"),
-      handler: "handler.lambda_handler",
-      memorySize: 512,
-    });
+      code:         lambda.Code.fromAsset("../lambdas/query_api"),
+      handler:      "handler.lambda_handler",
+      memorySize:   512,
+    }));
     eventsTable.grantReadData(queryLambda);
     priceTable.grantReadData(queryLambda);
     reconciliationTable.grantReadData(queryLambda);
 
-    // ─────────────────────────────────────────────
-    // API GATEWAY
-    // ─────────────────────────────────────────────
+    // ── API Gateway ───────────────────────────────────────────────
 
     const api = new apigateway.RestApi(this, "BedrockCostApi", {
       restApiName: "bedrock-cost-explorer",
       description: "Bedrock Cost Explorer — ingest + query API",
       deployOptions: {
-        stageName: "v1",
+        stageName:            "v1",
         throttlingBurstLimit: 500,
-        throttlingRateLimit: 100,
-        metricsEnabled: true,
-        loggingLevel: apigateway.MethodLoggingLevel.ERROR,
+        throttlingRateLimit:  100,
+        metricsEnabled:       true,
+        loggingLevel:         apigateway.MethodLoggingLevel.ERROR,
       },
       defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS, // lock down in prod
+        allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ["Content-Type", "X-Api-Key"],
       },
     });
 
-    // API key for SDK wrapper authentication
     const apiKey = api.addApiKey("SdkWrapperApiKey", {
-      apiKeyName: "bedrock-sdk-wrapper",
+      apiKeyName:  "bedrock-sdk-wrapper",
       description: "Used by instrumentation SDK wrappers",
     });
     const usagePlan = api.addUsagePlan("DefaultUsagePlan", {
-      name: "default",
+      name:     "default",
       throttle: { rateLimit: 100, burstLimit: 500 },
     });
     usagePlan.addApiKey(apiKey);
     usagePlan.addApiStage({ stage: api.deploymentStage });
 
-    const ingestIntegration = new apigateway.LambdaIntegration(ingestLambda, {
-      requestTemplates: { "application/json": '{ "statusCode": "200" }' },
-    });
-    const queryIntegration = new apigateway.LambdaIntegration(queryLambda);
-
-    // POST /events  — SDK wrapper ingestion (requires API key)
     const eventsResource = api.root.addResource("events");
-    eventsResource.addMethod("POST", ingestIntegration, {
-      apiKeyRequired: true,
-    });
+    eventsResource.addMethod("POST",
+      new apigateway.LambdaIntegration(ingestLambda, {
+        requestTemplates: { "application/json": '{ "statusCode": "200" }' },
+      }),
+      { apiKeyRequired: true }
+    );
 
-    // GET /query/*  — dashboard read endpoints (internal; add Cognito in prod)
-    const queryResource = api.root.addResource("query");
-    const queryProxy = queryResource.addResource("{proxy+}");
-    queryProxy.addMethod("GET", queryIntegration);
+    const queryProxy = api.root.addResource("query").addResource("{proxy+}");
+    queryProxy.addMethod("GET", new apigateway.LambdaIntegration(queryLambda));
 
-    // ─────────────────────────────────────────────
-    // OUTPUTS
-    // ─────────────────────────────────────────────
+    // ── Outputs ───────────────────────────────────────────────────
 
     this.eventsTableName = eventsTable.tableName;
-    this.priceTableName = priceTable.tableName;
-    this.ingestApiUrl = api.url;
+    this.priceTableName  = priceTable.tableName;
+    this.ingestApiUrl    = api.url;
 
     new cdk.CfnOutput(this, "IngestApiUrl", {
-      value: api.url + "events",
+      value:       api.url + "events",
       description: "Endpoint for SDK wrapper to POST events to",
     });
     new cdk.CfnOutput(this, "QueryApiUrl", {
-      value: api.url + "query",
+      value:       api.url + "query",
       description: "Base URL for dashboard query endpoints",
     });
     new cdk.CfnOutput(this, "ApiKeyId", {
-      value: apiKey.keyId,
+      value:       apiKey.keyId,
       description: "API key ID — retrieve value from console or CLI",
     });
-    new cdk.CfnOutput(this, "AlertTopicArn", {
-      value: alertTopic.topicArn,
-    });
+    new cdk.CfnOutput(this, "AlertTopicArn", { value: alertTopic.topicArn });
   }
 }
