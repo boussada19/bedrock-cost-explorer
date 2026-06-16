@@ -49,10 +49,9 @@ jobs:
           ALERT_TOPIC_ARN: arn:aws:sns:eu-central-1:123456789012:bedrock-cost-alerts
         run: |
           pytest tests/ -v --tb=short \
-            --cov=lambdas \
-            --cov=sdk/python \
-            --cov-report=term-missing \
-            --cov-fail-under=80
+            --cov \
+            --cov-config=pytest.ini \
+            --cov-report=term-missing
 
   # ────────────────────────────────────────────────────────────────
   # JOB 2 — CDK synth (validates TypeScript compiles + stack is valid)
