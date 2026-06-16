@@ -10,10 +10,11 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
     "outDir": "./dist",
-    "rootDir": "./",
     "esModuleInterop": true,
     "experimentalDecorators": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["node"]
   },
+  "include": ["bin/**/*.ts", "lib/**/*.ts"],
   "exclude": ["node_modules", "cdk.out", "dist"]
 }
