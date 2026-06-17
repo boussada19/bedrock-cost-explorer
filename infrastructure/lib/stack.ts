@@ -38,7 +38,7 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       timeToLiveAttribute: "ttl",
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       stream: dynamodb.StreamViewType.NEW_IMAGE,
     });
@@ -99,7 +99,9 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       topicName: "bedrock-cost-alerts",
       displayName: "Bedrock Cost Explorer Alerts",
     });
-    alertTopic.addSubscription(new subscriptions.EmailSubscription(props.alertEmail));
+    if (props.alertEmail) {
+      alertTopic.addSubscription(new subscriptions.EmailSubscription(props.alertEmail));
+    }
 
     // ── Shared Lambda config ──────────────────────────────────────
     //
@@ -231,8 +233,9 @@ export class BedrockCostExplorerStack extends cdk.Stack {
         stageName:            "v1",
         throttlingBurstLimit: 500,
         throttlingRateLimit:  100,
-        metricsEnabled:       true,
-        loggingLevel:         apigateway.MethodLoggingLevel.ERROR,
+        metricsEnabled:       false,
+        // loggingLevel omitted — requires a CloudWatch Logs role ARN configured
+        // at the account level in API Gateway → Settings before it can be enabled.
       },
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
