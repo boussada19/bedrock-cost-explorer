@@ -1,1119 +1,505 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bedrock Cost Explorer</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-    <style>
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      :root {
-        --bg: #fafaf9;
-        --bg2: #f5f4f1;
-        --bg3: #eeecea;
-        --border: rgba(0, 0, 0, 0.1);
-        --border2: rgba(0, 0, 0, 0.18);
-        --text: #1a1a18;
-        --text2: #6b6b66;
-        --text3: #a0a09a;
-        --mono: "SF Mono", "Fira Code", "Consolas", monospace;
-        --green: #1a7a4a;
-        --amber: #b35e00;
-        --red: #c0392b;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #111110;
-          --bg2: #1a1917;
-          --bg3: #232220;
-          --border: rgba(255, 255, 255, 0.1);
-          --border2: rgba(255, 255, 255, 0.18);
-          --text: #eeecea;
-          --text2: #8c8c86;
-          --text3: #5a5a54;
-          --green: #34d399;
-          --amber: #f59e0b;
-          --red: #f87171;
-        }
-      }
-      body {
-        background: var(--bg);
-        color: var(--text);
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-        font-size: 13px;
-        line-height: 1.5;
-      }
-      #root {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 24px;
-      }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.2;
-        }
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="text/babel">
-      const { useState, useEffect, useCallback, useRef } = React;
-      const {
-        LineChart,
-        Line,
-        BarChart,
-        Bar,
-        XAxis,
-        YAxis,
-        CartesianGrid,
-        Tooltip,
-        ResponsiveContainer,
-        Legend,
-      } = Recharts;
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Bedrock Cost Explorer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#3b4cff;
+  --primary-h:#3344e6;
+  --secondary:#30c68a;
+  --accent:#ff9900;
+  --bg:#f0f2f5;
+  --surface:#ffffff;
+  --surface2:#f8f9fb;
+  --text:#212529;
+  --text2:#555b63;
+  --text3:#9ea5ad;
+  --border:#dee2e6;
+  --border2:#c8cdd3;
+  --mono:'SF Mono','Fira Code',Consolas,monospace;
+  --radius:14px;
+  --shadow:0 2px 12px rgba(0,0,0,0.07);
+  --shadow-h:0 6px 20px rgba(0,0,0,0.11);
+  --green:#30c68a;
+  --amber:#ff9900;
+  --red:#dc3545;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0e0f14;
+  --surface:#16181f;
+  --surface2:#1e2028;
+  --text:#e8eaf0;
+  --text2:#9098a8;
+  --text3:#545c6a;
+  --border:rgba(255,255,255,.09);
+  --border2:rgba(255,255,255,.16);
+  --shadow:0 2px 12px rgba(0,0,0,.3);
+  --shadow-h:0 6px 20px rgba(0,0,0,.4);
+}}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.5;min-height:100vh}
+#app{max-width:1140px;margin:0 auto;padding:28px 24px}
 
-      const API =
-        "https://17u3qrm9a4.execute-api.eu-central-1.amazonaws.com/v1/query";
-      const KEY = "bUXRE6VDKAa3fjqY1GEShhF2AFhxgZ62AktmYh05";
+/* ── topbar ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:20px}
+.logo-zone{display:flex;align-items:center;gap:14px}
+.logo-img{height:36px;width:auto;object-fit:contain}
+.logo-text{display:flex;flex-direction:column}
+.prod-name{font-size:15px;font-weight:600;color:var(--primary);letter-spacing:-.2px}
+.prod-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.topbar-r{display:flex;align-items:center;gap:14px}
+.live{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--green);font-weight:600;letter-spacing:.04em}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+.ts{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.aws-badge{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;font-size:12px;font-weight:600;font-family:inherit;border-radius:var(--radius);border:none;cursor:pointer;background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(59,76,255,.25);transition:all .15s}
+.btn:hover{background:var(--primary-h);box-shadow:0 4px 12px rgba(59,76,255,.35);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(59,76,255,.2);border-top:2px solid var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-      const s = {
-        topbar: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingBottom: 20,
-          borderBottom: "0.5px solid var(--border)",
-          marginBottom: 20,
-        },
-        logoZone: { display: "flex", alignItems: "center", gap: 12 },
-        logoBox: {
-          width: 36,
-          height: 36,
-          border: "0.5px solid var(--border2)",
-          borderRadius: 6,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--text3)",
-          fontSize: 9,
-          letterSpacing: ".08em",
-          textTransform: "uppercase",
-        },
-        prodName: {
-          fontSize: 15,
-          fontWeight: 500,
-          color: "var(--text)",
-          letterSpacing: "-.2px",
-        },
-        prodSub: { fontSize: 11, color: "var(--text3)", marginTop: 1 },
-        liveBadge: {
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          fontSize: 11,
-          color: "var(--green)",
-          letterSpacing: ".04em",
-        },
-        liveDot: {
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: "var(--green)",
-          animation: "pulse 2s infinite",
-        },
-        ts: { fontSize: 11, color: "var(--text3)", fontFamily: "var(--mono)" },
-        ctrlBar: {
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          marginBottom: 20,
-        },
-        sep: {
-          width: "0.5px",
-          height: 14,
-          background: "var(--border)",
-          margin: "0 4px",
-        },
-        pill: (on) => ({
-          padding: "3px 10px",
-          borderRadius: 3,
-          fontSize: 11,
-          letterSpacing: ".04em",
-          cursor: "pointer",
-          border: on
-            ? "0.5px solid var(--border2)"
-            : "0.5px solid var(--border)",
-          color: on ? "var(--text)" : "var(--text3)",
-          background: on ? "var(--bg2)" : "transparent",
-          fontWeight: on ? 500 : 400,
-        }),
-        kpiGrid: {
-          display: "grid",
-          gridTemplateColumns: "repeat(5,minmax(0,1fr))",
-          gap: 1,
-          border: "0.5px solid var(--border)",
-          borderRadius: 12,
-          overflow: "hidden",
-          marginBottom: 20,
-          background: "var(--border)",
-        },
-        kpi: { background: "var(--bg)", padding: "16px 18px" },
-        kpiL: {
-          fontSize: 10,
-          color: "var(--text3)",
-          textTransform: "uppercase",
-          letterSpacing: ".08em",
-          marginBottom: 8,
-        },
-        kpiV: {
-          fontSize: 20,
-          fontWeight: 500,
-          color: "var(--text)",
-          fontFamily: "var(--mono)",
-          letterSpacing: "-.5px",
-        },
-        kpiS: {
-          fontSize: 11,
-          color: "var(--text3)",
-          marginTop: 4,
-          fontFamily: "var(--mono)",
-        },
-        section: {
-          border: "0.5px solid var(--border)",
-          borderRadius: 12,
-          marginBottom: 14,
-          overflow: "hidden",
-        },
-        secHead: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "11px 16px",
-          borderBottom: "0.5px solid var(--border)",
-          background: "var(--bg2)",
-        },
-        secTitle: {
-          fontSize: 10,
-          textTransform: "uppercase",
-          letterSpacing: ".08em",
-          color: "var(--text2)",
-          fontWeight: 500,
-        },
-        secBody: { padding: "16px" },
-        twoCol: {
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 14,
-          marginBottom: 14,
-        },
-        footer: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingTop: 14,
-          borderTop: "0.5px solid var(--border)",
-          marginTop: 4,
-        },
-        footNote: {
-          fontSize: 11,
-          color: "var(--text3)",
-          fontFamily: "var(--mono)",
-        },
-        spinner: {
-          display: "inline-block",
-          width: 13,
-          height: 13,
-          border: "1.5px solid var(--border2)",
-          borderTop: "1.5px solid var(--text2)",
-          borderRadius: "50%",
-          animation: "spin .7s linear infinite",
-        },
-      };
+/* ── ctrl pills ── */
+.ctrl{display:flex;align-items:center;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.pill{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:.03em;border:1px solid var(--border);color:var(--text3);background:var(--surface);cursor:pointer;font-family:inherit;transition:all .15s}
+.pill:hover{border-color:var(--border2);color:var(--text2)}
+.pill.on{border-color:var(--primary);color:var(--primary);background:rgba(59,76,255,.07);font-weight:600}
+.sep{width:1px;height:16px;background:var(--border);margin:0 4px}
 
-      const fmt$ = (n) =>
-        n == null
-          ? "—"
-          : +n >= 1
-            ? `$${(+n).toFixed(4)}`
-            : `$${(+n).toFixed(6)}`;
-      const fmtK = (n) =>
-        n == null
-          ? "—"
-          : +n >= 1e6
-            ? `${(+n / 1e6).toFixed(2)}M`
-            : +n >= 1e3
-              ? `${(+n / 1e3).toFixed(1)}k`
-              : String(n);
-      const fmtP = (n) => (n == null ? "—" : `${(+n).toFixed(1)}%`);
-      const mono = (s) => ({ fontFamily: "var(--mono)", ...s });
+/* ── KPI grid ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);transition:box-shadow .15s}
+.kpi:hover{box-shadow:var(--shadow-h)}
+.kpi-l{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px;font-weight:500}
+.kpi-v{font-size:22px;font-weight:600;font-family:var(--mono);letter-spacing:-.5px;color:var(--text)}
+.kpi-s{font-size:11px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
+.kpi-bar{height:3px;border-radius:2px;margin-top:10px;background:var(--border)}
+.kpi-bar-fill{height:100%;border-radius:2px;background:var(--primary)}
 
-      async function qfetch(path, params = {}) {
-        const u = new URL(`${API}/${path}`);
-        Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
-        const r = await fetch(u, { headers: { "X-Api-Key": KEY } });
-        if (!r.ok) throw new Error(r.status);
-        return r.json();
-      }
-      function tw(h) {
-        const e = new Date(),
-          s = new Date(Date.now() - h * 3600000);
-        return { start: s.toISOString(), end: e.toISOString() };
-      }
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.card-t{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--text2);font-weight:600}
+.card-b{padding:18px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.two .card{margin:0}
 
-      const TOOLTIP_STYLE = {
-        background: "var(--bg2)",
-        border: "0.5px solid var(--border2)",
-        borderRadius: 6,
-        fontSize: 11,
-        color: "var(--text)",
-        fontFamily: "var(--mono)",
-      };
+/* ── Tables ── */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:0 0 9px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border)}
+th.r{text-align:right}
+td{padding:8px 0;border-bottom:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:12px}
+td.name{font-family:inherit;color:var(--text);font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.r{text-align:right}
+tr:last-child td{border:none}
+.bar-w{height:4px;background:rgba(59,76,255,.12);border-radius:2px;overflow:hidden;width:80px}
+.bar-f{height:100%;border-radius:2px;background:var(--primary)}
 
-      function App() {
-        const [wh, setWh] = useState(24);
-        const [gran, setGran] = useState("hour");
-        const [tab, setTab] = useState("model");
-        const [sum, setSum] = useState(null);
-        const [ts, setTs] = useState(null);
-        const [bd, setBd] = useState(null);
-        const [recon, setRecon] = useState(null);
-        const [cov, setCov] = useState(null);
-        const [loading, setLoading] = useState(true);
-        const [loadBd, setLoadBd] = useState(true);
-        const [err, setErr] = useState(null);
-        const [lastRef, setLastRef] = useState(null);
-        const timer = useRef(null);
+/* ── Coverage ── */
+.cov-n{font-size:36px;font-weight:700;font-family:var(--mono);letter-spacing:-1px;margin-bottom:12px}
+.stat{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border)}
+.stat:last-child{border:none}
+.stat-v{font-family:var(--mono);color:var(--text);font-weight:500}
 
-        const DIMS = {
-          agent: { path: "by-agent", key: "agent_id", label: "Agent" },
-          user: { path: "by-user", key: "user_id", label: "User" },
-          app: { path: "by-app", key: "application_id", label: "Application" },
-          model: { path: "by-model", key: "model_id", label: "Model" },
-        };
+/* ── States ── */
+.empty{font-size:12px;color:var(--text3);padding:10px 0}
+.next-box{margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2)}
+.next-l{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:4px;font-weight:500}
+.next-v{font-size:13px;font-family:var(--mono);color:var(--text);font-weight:500}
+.next-s{font-size:11px;color:var(--text3);margin-top:2px}
+.err{padding:10px 16px;margin-bottom:16px;border-radius:var(--radius);border:1px solid rgba(220,53,69,.3);background:rgba(220,53,69,.07);color:var(--red);font-size:12px;font-family:var(--mono)}
+.warn-box{margin-top:12px;padding:9px 13px;border:1px solid rgba(255,153,0,.4);border-radius:var(--radius);color:var(--amber);font-size:11px;font-family:var(--mono);background:rgba(255,153,0,.07)}
 
-        const loadMain = useCallback(async () => {
-          const { start, end } = tw(wh);
-          setLoading(true);
-          try {
-            const [s, t, r, c] = await Promise.all([
-              qfetch("summary", { start, end }),
-              qfetch("timeseries", { start, end, granularity: gran }),
-              qfetch("reconciliation", { limit: "10" }),
-              qfetch("coverage"),
-            ]);
-            setSum(s);
-            setTs(t);
-            setRecon(r);
-            setCov(c);
-            setErr(null);
-            setLastRef(new Date().toISOString().slice(11, 16) + " UTC");
-          } catch (e) {
-            setErr(String(e));
-          } finally {
-            setLoading(false);
-          }
-        }, [wh, gran]);
+/* ── Charts ── */
+canvas{display:block}
+.ch-wrap{position:relative;height:140px}
+.legend{display:flex;gap:16px;margin-top:10px}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)}
+.leg-dot{width:12px;height:3px;border-radius:2px}
 
-        const loadBD = useCallback(async () => {
-          const { start, end } = tw(wh);
-          setLoadBd(true);
-          try {
-            const b = await qfetch(DIMS[tab].path, { start, end });
-            setBd(b);
-          } catch (e) {
-          } finally {
-            setLoadBd(false);
-          }
-        }, [wh, tab]);
+/* ── Footer ── */
+.foot{display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:8px;margin-top:4px}
+.foot-n{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.status-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.si{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.sd{width:6px;height:6px;border-radius:50%}
+</style>
+</head>
+<body>
+<div id="app">
 
-        useEffect(() => {
-          loadMain();
-          clearInterval(timer.current);
-          timer.current = setInterval(loadMain, 60000);
-          return () => clearInterval(timer.current);
-        }, [loadMain]);
-        useEffect(() => {
-          loadBD();
-        }, [loadBD]);
+  <div class="topbar">
+    <div class="logo-zone">
+      <img src="logo.png" class="logo-img" alt="Logo" onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='flex'"/>
+      <div id="logo-fallback" style="display:none;width:36px;height:36px;border-radius:8px;background:var(--primary);align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">BCE</div>
+      <div class="logo-text">
+        <div class="prod-name">Bedrock Cost Explorer</div>
+        <div class="prod-sub">AWS · eu-central-1 · internal dashboard</div>
+      </div>
+    </div>
+    <div class="topbar-r">
+      <div class="aws-badge">☁ AWS Bedrock</div>
+      <div class="live"><span class="dot"></span>LIVE</div>
+      <span class="ts" id="last-ref"></span>
+      <span class="spin" id="spin" style="display:none"></span>
+      <button class="btn" onclick="loadAll()">↻ Refresh</button>
+    </div>
+  </div>
 
-        const cPct = cov?.coverage_pct ?? 100;
-        const cColor =
-          cPct >= 95
-            ? "var(--green)"
-            : cPct >= 80
-              ? "var(--amber)"
-              : "var(--red)";
-        const series = ts?.series || [];
-        const shortTs = (v) => {
-          if (!v) return "";
-          return gran === "day"
-            ? v.slice(0, 10)
-            : (v.split("T")[1] || "").slice(0, 5);
-        };
-        const maxBD = Math.max(
-          ...(bd?.items || []).map((r) => r.total_cost_usd || 0),
-          0.000001,
-        );
+  <div id="err-box" style="display:none" class="err"></div>
 
-        return (
-          <div>
-            <div style={s.topbar}>
-              <div style={s.logoZone}>
-                <div style={s.logoBox}>LOGO</div>
-                <div>
-                  <div style={s.prodName}>Bedrock cost explorer</div>
-                  <div style={s.prodSub}>AWS · eu-central-1 · internal</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={s.liveBadge}>
-                  <span style={s.liveDot} />
-                  LIVE
-                </div>
-                {lastRef && <span style={s.ts}>{lastRef}</span>}
-                {loading && <span style={s.spinner} />}
-                <button
-                  style={s.pill(false)}
-                  onClick={() => {
-                    loadMain();
-                    loadBD();
-                  }}
-                >
-                  ↻ Refresh
-                </button>
-              </div>
-            </div>
+  <div class="ctrl">
+    <button class="pill" data-w="1">1h</button>
+    <button class="pill" data-w="6">6h</button>
+    <button class="pill on" data-w="24">24h</button>
+    <button class="pill" data-w="168">7d</button>
+    <button class="pill" data-w="720">30d</button>
+    <div class="sep"></div>
+    <button class="pill on" data-g="hour">Hourly</button>
+    <button class="pill" data-g="day">Daily</button>
+  </div>
 
-            {err && (
-              <div
-                style={{
-                  padding: "9px 14px",
-                  marginBottom: 16,
-                  borderRadius: 8,
-                  border: "0.5px solid var(--red)",
-                  color: "var(--red)",
-                  fontSize: 12,
-                  fontFamily: "var(--mono)",
-                }}
-              >
-                {err}
-              </div>
-            )}
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-l">Total cost</div>
+      <div class="kpi-v" id="k-cost">—</div>
+      <div class="kpi-s" id="k-calls">—</div>
+      <div class="kpi-bar"><div class="kpi-bar-fill" id="k-cost-bar" style="width:0%"></div></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-l">Input tokens</div>
+      <div class="kpi-v" id="k-in">—</div>
+      <div class="kpi-s" id="k-in-avg">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-l">Output tokens</div>
+      <div class="kpi-v" id="k-out">—</div>
+      <div class="kpi-s" id="k-out-avg">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-l">Error rate</div>
+      <div class="kpi-v" id="k-err">—</div>
+      <div class="kpi-s" id="k-errc">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-l">Wrapper coverage</div>
+      <div class="kpi-v" id="k-cov">—</div>
+      <div class="kpi-s">last 7 days</div>
+    </div>
+  </div>
 
-            <div style={s.ctrlBar}>
-              {[
-                { l: "1h", h: 1 },
-                { l: "6h", h: 6 },
-                { l: "24h", h: 24 },
-                { l: "7d", h: 168 },
-                { l: "30d", h: 720 },
-              ].map((w) => (
-                <button
-                  key={w.h}
-                  style={s.pill(wh === w.h)}
-                  onClick={() => setWh(w.h)}
-                >
-                  {w.l}
-                </button>
-              ))}
-              <div style={s.sep} />
-              {[
-                ["hour", "Hourly"],
-                ["day", "Daily"],
-              ].map(([v, l]) => (
-                <button
-                  key={v}
-                  style={s.pill(gran === v)}
-                  onClick={() => setGran(v)}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
+  <div class="card">
+    <div class="card-h">
+      <span class="card-t">Cost over time</span>
+      <span class="ts" id="ts-label">24h · hourly</span>
+    </div>
+    <div class="card-b"><div class="ch-wrap"><canvas id="cost-chart"></canvas></div></div>
+  </div>
 
-            <div style={s.kpiGrid}>
-              {[
-                {
-                  l: "Total cost",
-                  v: loading ? "—" : fmt$(sum?.total_cost_usd),
-                  sub: `${(sum?.total_events || 0).toLocaleString()} calls`,
-                },
-                {
-                  l: "Input tokens",
-                  v: loading ? "—" : fmtK(sum?.total_input_tokens),
-                  sub: `${sum?.total_events ? Math.round(sum.total_input_tokens / sum.total_events) : 0} / call avg`,
-                },
-                {
-                  l: "Output tokens",
-                  v: loading ? "—" : fmtK(sum?.total_output_tokens),
-                  sub: `${sum?.total_events ? Math.round(sum.total_output_tokens / sum.total_events) : 0} / call avg`,
-                },
-                {
-                  l: "Error rate",
-                  v: loading
-                    ? "—"
-                    : fmtP(
-                        sum?.total_events
-                          ? (sum.error_count / sum.total_events) * 100
-                          : 0,
-                      ),
-                  sub: `${sum?.error_count || 0} errors`,
-                },
-                {
-                  l: "Coverage",
-                  v: loading ? (
-                    "—"
-                  ) : (
-                    <span style={{ color: cColor }}>{fmtP(cPct)}</span>
-                  ),
-                  sub: "last 7 days",
-                },
-              ].map((k, i) => (
-                <div key={i} style={s.kpi}>
-                  <div style={s.kpiL}>{k.l}</div>
-                  <div style={s.kpiV}>{k.v}</div>
-                  <div style={s.kpiS}>{k.sub}</div>
-                </div>
-              ))}
-            </div>
+  <div class="card">
+    <div class="card-h">
+      <span class="card-t">Token consumption</span>
+      <span class="ts">input / output split</span>
+    </div>
+    <div class="card-b">
+      <div class="ch-wrap"><canvas id="token-chart"></canvas></div>
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:var(--primary)"></div>Input tokens</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--secondary)"></div>Output tokens</div>
+      </div>
+    </div>
+  </div>
 
-            <div style={s.section}>
-              <div style={s.secHead}>
-                <span style={s.secTitle}>Cost over time</span>
-                <span style={s.ts}>
-                  {wh}h window · {gran} buckets
-                </span>
-              </div>
-              <div style={s.secBody}>
-                {loading ? (
-                  <div
-                    style={{
-                      height: 140,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <span style={s.spinner} />
-                  </div>
-                ) : series.length ? (
-                  <ResponsiveContainer width="100%" height={140}>
-                    <LineChart
-                      data={series}
-                      margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="2 3"
-                        stroke="var(--border)"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="period"
-                        tickFormatter={shortTs}
-                        tick={{
-                          fontSize: 10,
-                          fill: "var(--text3)",
-                          fontFamily: "var(--mono)",
-                        }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        tick={{
-                          fontSize: 10,
-                          fill: "var(--text3)",
-                          fontFamily: "var(--mono)",
-                        }}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(v) => `$${(+v).toFixed(4)}`}
-                      />
-                      <Tooltip
-                        formatter={(v) => [fmt$(v), "cost"]}
-                        labelFormatter={shortTs}
-                        contentStyle={TOOLTIP_STYLE}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="total_cost_usd"
-                        stroke="var(--text2)"
-                        strokeWidth={1}
-                        dot={false}
-                        activeDot={{ r: 2, fill: "var(--text)" }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div
-                    style={{
-                      height: 140,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--text3)",
-                      fontSize: 12,
-                    }}
-                  >
-                    No data for this window.
-                  </div>
-                )}
-              </div>
-            </div>
+  <div class="card">
+    <div class="card-h">
+      <span class="card-t">Cost breakdown</span>
+      <div style="display:flex;gap:5px">
+        <button class="pill" data-d="agent_id">Agent</button>
+        <button class="pill" data-d="user_id">User</button>
+        <button class="pill" data-d="application_id">App</button>
+        <button class="pill on" data-d="model_id">Model</button>
+      </div>
+    </div>
+    <div class="card-b" id="bd-body"><div class="spin"></div></div>
+  </div>
 
-            <div style={s.section}>
-              <div style={s.secHead}>
-                <span style={s.secTitle}>Token consumption</span>
-                <span style={s.ts}>input / output split</span>
-              </div>
-              <div style={s.secBody}>
-                {loading ? (
-                  <div
-                    style={{
-                      height: 120,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <span style={s.spinner} />
-                  </div>
-                ) : series.length ? (
-                  <ResponsiveContainer width="100%" height={120}>
-                    <BarChart
-                      data={series}
-                      margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="2 3"
-                        stroke="var(--border)"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="period"
-                        tickFormatter={shortTs}
-                        tick={{
-                          fontSize: 10,
-                          fill: "var(--text3)",
-                          fontFamily: "var(--mono)",
-                        }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis
-                        tick={{
-                          fontSize: 10,
-                          fill: "var(--text3)",
-                          fontFamily: "var(--mono)",
-                        }}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={fmtK}
-                      />
-                      <Tooltip
-                        formatter={(v, n) => [
-                          fmtK(v),
-                          n === "input_tokens" ? "input" : "output",
-                        ]}
-                        labelFormatter={shortTs}
-                        contentStyle={TOOLTIP_STYLE}
-                      />
-                      <Bar
-                        dataKey="input_tokens"
-                        name="input_tokens"
-                        stackId="a"
-                        fill="var(--text2)"
-                        radius={[0, 0, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="output_tokens"
-                        name="output_tokens"
-                        stackId="a"
-                        fill="var(--text3)"
-                        radius={[1, 1, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div
-                    style={{
-                      height: 120,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--text3)",
-                      fontSize: 12,
-                    }}
-                  >
-                    No data yet.
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
-                  {[
-                    ["var(--text2)", "Input tokens"],
-                    ["var(--text3)", "Output tokens"],
-                  ].map(([c, l]) => (
-                    <div
-                      key={l}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontSize: 11,
-                        color: "var(--text3)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 10,
-                          height: 2,
-                          background: c,
-                          borderRadius: 1,
-                        }}
-                      />
-                      {l}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+  <div class="two">
+    <div class="card">
+      <div class="card-h">
+        <span class="card-t">Reconciliation</span>
+        <span class="ts">vs AWS CUR · daily</span>
+      </div>
+      <div class="card-b" id="recon-body"><div class="spin"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <span class="card-t">Wrapper coverage</span>
+        <span class="ts">7d window</span>
+      </div>
+      <div class="card-b" id="cov-body"><div class="spin"></div></div>
+    </div>
+  </div>
 
-            <div style={s.section}>
-              <div style={s.secHead}>
-                <span style={s.secTitle}>Cost breakdown</span>
-                <div style={{ display: "flex", gap: 4 }}>
-                  {Object.keys(DIMS).map((t) => (
-                    <button
-                      key={t}
-                      style={s.pill(tab === t)}
-                      onClick={() => setTab(t)}
-                    >
-                      {DIMS[t].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div style={s.secBody}>
-                {loadBd ? (
-                  <div style={{ padding: "16px 0", textAlign: "center" }}>
-                    <span style={s.spinner} />
-                  </div>
-                ) : (bd?.items || []).length ? (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 12,
-                    }}
-                  >
-                    <thead>
-                      <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
-                        {[
-                          DIMS[tab].label,
-                          "Cost",
-                          "Input",
-                          "Output",
-                          "Calls",
-                          "",
-                        ].map((h, i) => (
-                          <th
-                            key={i}
-                            style={{
-                              textAlign: i === 0 ? "left" : "right",
-                              padding: "0 0 8px",
-                              fontSize: 10,
-                              textTransform: "uppercase",
-                              letterSpacing: ".07em",
-                              color: "var(--text3)",
-                              fontWeight: 400,
-                              paddingRight: i === 5 ? 0 : 8,
-                            }}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(bd?.items || []).map((row, i) => (
-                        <tr
-                          key={i}
-                          style={{ borderBottom: "0.5px solid var(--border)" }}
-                        >
-                          <td
-                            style={{
-                              padding: "7px 8px 7px 0",
-                              color: "var(--text)",
-                              maxWidth: 180,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {row[DIMS[tab].key] || "(unattributed)"}
-                          </td>
-                          <td
-                            style={{
-                              padding: "7px 8px",
-                              textAlign: "right",
-                              ...mono({}),
-                            }}
-                          >
-                            {fmt$(row.total_cost_usd)}
-                          </td>
-                          <td
-                            style={{
-                              padding: "7px 8px",
-                              textAlign: "right",
-                              ...mono({ color: "var(--text2)" }),
-                            }}
-                          >
-                            {fmtK(row.input_tokens)}
-                          </td>
-                          <td
-                            style={{
-                              padding: "7px 8px",
-                              textAlign: "right",
-                              ...mono({ color: "var(--text2)" }),
-                            }}
-                          >
-                            {fmtK(row.output_tokens)}
-                          </td>
-                          <td
-                            style={{
-                              padding: "7px 8px",
-                              textAlign: "right",
-                              ...mono({ color: "var(--text2)" }),
-                            }}
-                          >
-                            {(row.event_count || 0).toLocaleString()}
-                          </td>
-                          <td style={{ padding: "7px 0", width: 72 }}>
-                            <div
-                              style={{
-                                height: 2,
-                                background: "var(--border2)",
-                                borderRadius: 1,
-                                overflow: "hidden",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  height: "100%",
-                                  width: `${((row.total_cost_usd || 0) / maxBD) * 100}%`,
-                                  background: "var(--text2)",
-                                  borderRadius: 1,
-                                }}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "var(--text3)",
-                      padding: "8px 0",
-                    }}
-                  >
-                    No data for this window.
-                  </div>
-                )}
-              </div>
-            </div>
+  <div class="foot">
+    <div class="foot-n">token-computed · not from billing pipeline · price table v1</div>
+    <div class="status-row">
+      <div class="si"><span class="sd" style="background:var(--green)"></span>ingest api</div>
+      <div class="si"><span class="sd" style="background:var(--green)"></span>cost compute</div>
+      <div class="si"><span class="sd" style="background:var(--text3)"></span>reconcile 06:00</div>
+      <div class="si"><span class="sd" style="background:var(--text3)"></span>backfill hourly</div>
+    </div>
+  </div>
+</div>
 
-            <div style={s.twoCol}>
-              <div style={{ ...s.section, margin: 0 }}>
-                <div style={s.secHead}>
-                  <span style={s.secTitle}>Reconciliation</span>
-                  <span style={s.ts}>vs AWS CUR · daily</span>
-                </div>
-                <div style={s.secBody}>
-                  {!recon ? (
-                    <span style={s.spinner} />
-                  ) : recon.runs?.length ? (
-                    <table
-                      style={{
-                        width: "100%",
-                        borderCollapse: "collapse",
-                        fontSize: 12,
-                      }}
-                    >
-                      <thead>
-                        <tr
-                          style={{ borderBottom: "0.5px solid var(--border)" }}
-                        >
-                          {["Date", "Computed", "Billed", "Variance"].map(
-                            (h, i) => (
-                              <th
-                                key={h}
-                                style={{
-                                  textAlign: i === 0 ? "left" : "right",
-                                  padding: "0 0 7px",
-                                  fontSize: 10,
-                                  textTransform: "uppercase",
-                                  letterSpacing: ".07em",
-                                  color: "var(--text3)",
-                                  fontWeight: 400,
-                                }}
-                              >
-                                {h}
-                              </th>
-                            ),
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recon.runs.map((r, i) => {
-                          const vp = parseFloat(r.variance_pct || 0);
-                          const vc =
-                            Math.abs(vp) < 5
-                              ? "var(--text2)"
-                              : Math.abs(vp) < 10
-                                ? "var(--amber)"
-                                : "var(--red)";
-                          return (
-                            <tr
-                              key={i}
-                              style={{
-                                borderBottom: "0.5px solid var(--border)",
-                              }}
-                            >
-                              <td
-                                style={{
-                                  padding: "6px 0",
-                                  fontFamily: "var(--mono)",
-                                  fontSize: 11,
-                                }}
-                              >
-                                {r.run_date}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "6px 0",
-                                  textAlign: "right",
-                                  fontFamily: "var(--mono)",
-                                  fontSize: 11,
-                                  color: "var(--text2)",
-                                }}
-                              >
-                                {fmt$(parseFloat(r.computed_cost_usd || 0))}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "6px 0",
-                                  textAlign: "right",
-                                  fontFamily: "var(--mono)",
-                                  fontSize: 11,
-                                  color: "var(--text2)",
-                                }}
-                              >
-                                {r.cur_available
-                                  ? fmt$(parseFloat(r.billed_cost_usd || 0))
-                                  : "—"}
-                              </td>
-                              <td
-                                style={{
-                                  padding: "6px 0",
-                                  textAlign: "right",
-                                  fontFamily: "var(--mono)",
-                                  fontSize: 11,
-                                  color: vc,
-                                }}
-                              >
-                                {r.cur_available
-                                  ? `${vp > 0 ? "+" : ""}${vp.toFixed(1)}%`
-                                  : "pending"}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--text3)",
-                          marginBottom: 12,
-                        }}
-                      >
-                        No runs yet — first run at 06:00 UTC tomorrow.
-                      </div>
-                      <div
-                        style={{
-                          padding: "10px 12px",
-                          border: "0.5px solid var(--border)",
-                          borderRadius: 8,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 10,
-                            textTransform: "uppercase",
-                            letterSpacing: ".07em",
-                            color: "var(--text3)",
-                            marginBottom: 5,
-                          }}
-                        >
-                          Next run
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontFamily: "var(--mono)",
-                            color: "var(--text)",
-                          }}
-                        >
-                          Tomorrow · 06:00 UTC
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text3)",
-                            marginTop: 2,
-                          }}
-                        >
-                          computed vs AWS billed variance
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+<script>
+const API = "https://17u3qrm9a4.execute-api.eu-central-1.amazonaws.com/v1/query";
+const KEY = "bUXRE6VDKAa3fjqY1GEShhF2AFhxgZ62AktmYh05";
 
-              <div style={{ ...s.section, margin: 0 }}>
-                <div style={s.secHead}>
-                  <span style={s.secTitle}>Wrapper coverage</span>
-                  <span style={s.ts}>7d window</span>
-                </div>
-                <div style={s.secBody}>
-                  {!cov ? (
-                    <span style={s.spinner} />
-                  ) : (
-                    <>
-                      <div
-                        style={{
-                          fontSize: 34,
-                          fontWeight: 500,
-                          fontFamily: "var(--mono)",
-                          color: cColor,
-                          letterSpacing: "-1px",
-                          marginBottom: 12,
-                        }}
-                      >
-                        {fmtP(cPct)}
-                      </div>
-                      {[
-                        ["Wrapper events", cov.wrapper_events],
-                        ["Backfill events", cov.backfill_events],
-                        ["Total", cov.total_events],
-                      ].map(([l, v], i) => (
-                        <div
-                          key={i}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            fontSize: 12,
-                            padding: "5px 0",
-                            borderBottom:
-                              i < 2 ? "0.5px solid var(--border)" : "none",
-                            color: "var(--text2)",
-                          }}
-                        >
-                          <span>{l}</span>
-                          <span
-                            style={{
-                              fontFamily: "var(--mono)",
-                              color: "var(--text)",
-                            }}
-                          >
-                            {(v || 0).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                      {cPct < 90 && (
-                        <div
-                          style={{
-                            marginTop: 12,
-                            padding: "8px 12px",
-                            border: "0.5px solid var(--amber)",
-                            borderRadius: 6,
-                            color: "var(--amber)",
-                            fontSize: 11,
-                            fontFamily: "var(--mono)",
-                          }}
-                        >
-                          Coverage below 90% — check for uninstrumented calls.
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+let windowHours=24, granularity="hour", dimKey="model_id";
 
-            <div style={s.footer}>
-              <div style={s.footNote}>
-                token-computed · not from billing pipeline · price table v1
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {[
-                  ["var(--green)", "ingest api"],
-                  ["var(--green)", "cost compute"],
-                  ["var(--text3)", "reconcile 06:00"],
-                  ["var(--text3)", "backfill hourly"],
-                ].map(([c, l]) => (
-                  <div
-                    key={l}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      fontSize: 11,
-                      color: "var(--text3)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: c,
-                      }}
-                    />
-                    {l}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      }
+const fmt$ = n => n==null?"—":+n>=1?`$${(+n).toFixed(4)}`:`$${(+n).toFixed(6)}`;
+const fmtK = n => n==null?"—":+n>=1e6?`${(+n/1e6).toFixed(2)}M`:+n>=1e3?`${(+n/1e3).toFixed(1)}k`:String(Math.round(+n));
+const fmtP = n => n==null?"—":`${(+n).toFixed(1)}%`;
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-    </script>
-  </body>
+function tw(){
+  const e=new Date(),s=new Date(Date.now()-windowHours*3600000);
+  return{start:s.toISOString(),end:e.toISOString()};
+}
+
+async function qfetch(path,params={}){
+  const u=new URL(`${API}/${path}`);
+  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
+  const r=await fetch(u,{headers:{"X-Api-Key":KEY}});
+  if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+
+function cssVar(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+
+function drawLine(id,data,valKey,fmtY){
+  const c=document.getElementById(id),w=c.parentElement;
+  c.width=w.clientWidth||680; c.height=w.clientHeight||140;
+  const ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+  const primary=cssVar("--primary"),t3=cssVar("--text3"),border=cssVar("--border");
+  const pad={l:56,r:12,t:10,b:24};
+  const W=c.width-pad.l-pad.r, H=c.height-pad.t-pad.b;
+
+  if(!data||!data.length){
+    ctx.fillStyle=t3;ctx.font="12px system-ui";ctx.textAlign="center";
+    ctx.fillText("No data for this window.",c.width/2,c.height/2);return;
+  }
+
+  const vals=data.map(d=>+(d[valKey]||0));
+  const maxV=Math.max(...vals,0.000001);
+  const steps=4;
+
+  ctx.strokeStyle=border;ctx.lineWidth=.7;
+  for(let i=0;i<=steps;i++){
+    const y=pad.t+H-(i/steps)*H;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+W,y);ctx.stroke();
+    ctx.fillStyle=t3;ctx.font="10px monospace";ctx.textAlign="right";
+    ctx.fillText(fmtY(maxV*i/steps),pad.l-6,y+3);
+  }
+
+  const xStep=W/(data.length-1||1);
+  const pts=data.map((d,i)=>({x:pad.l+i*xStep,y:pad.t+H-(+(d[valKey]||0)/maxV)*H}));
+
+  ctx.strokeStyle=primary;ctx.lineWidth=2;ctx.lineJoin="round";
+  ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.stroke();
+
+  pts.forEach(p=>{
+    ctx.fillStyle=primary;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(p.x,p.y,1.5,0,Math.PI*2);ctx.fill();
+  });
+
+  const idxs=[0,Math.floor(data.length/4),Math.floor(data.length/2),Math.floor(data.length*3/4),data.length-1];
+  ctx.fillStyle=t3;ctx.font="10px monospace";ctx.textAlign="center";
+  idxs.forEach(i=>{
+    if(i<data.length){
+      const lbl=granularity==="day"?data[i].period.slice(5):(data[i].period.split("T")[1]||"").slice(0,5);
+      ctx.fillText(lbl,pad.l+i*xStep,pad.t+H+16);
+    }
+  });
+}
+
+function drawBars(id,data){
+  const c=document.getElementById(id),w=c.parentElement;
+  c.width=w.clientWidth||680;c.height=w.clientHeight||140;
+  const ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+  const primary=cssVar("--primary"),secondary=cssVar("--secondary"),t3=cssVar("--text3"),border=cssVar("--border");
+  const pad={l:56,r:12,t:10,b:24};
+  const W=c.width-pad.l-pad.r,H=c.height-pad.t-pad.b;
+
+  if(!data||!data.length){
+    ctx.fillStyle=t3;ctx.font="12px system-ui";ctx.textAlign="center";
+    ctx.fillText("No data yet.",c.width/2,c.height/2);return;
+  }
+
+  const maxV=Math.max(...data.map(d=>+(d.input_tokens||0)+ +(d.output_tokens||0)),1);
+  const steps=4;
+  ctx.strokeStyle=border;ctx.lineWidth=.7;
+  for(let i=0;i<=steps;i++){
+    const y=pad.t+H-(i/steps)*H;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+W,y);ctx.stroke();
+    ctx.fillStyle=t3;ctx.font="10px monospace";ctx.textAlign="right";
+    ctx.fillText(fmtK(maxV*i/steps),pad.l-6,y+3);
+  }
+
+  const bw=Math.max(3,W/data.length*.65),gap=W/data.length;
+  data.forEach((d,i)=>{
+    const x=pad.l+i*gap+gap/2-bw/2;
+    const inp=+(d.input_tokens||0),out=+(d.output_tokens||0);
+    const inH=(inp/maxV)*H,outH=(out/maxV)*H;
+    ctx.fillStyle=primary;
+    ctx.beginPath();ctx.roundRect(x,pad.t+H-inH-outH,bw,inH,2);ctx.fill();
+    ctx.fillStyle=secondary;
+    ctx.beginPath();ctx.roundRect(x,pad.t+H-outH,bw,outH,[0,0,2,2]);ctx.fill();
+  });
+
+  const idxs=[0,Math.floor(data.length/4),Math.floor(data.length/2),Math.floor(data.length*3/4),data.length-1];
+  ctx.fillStyle=t3;ctx.font="10px monospace";ctx.textAlign="center";
+  idxs.forEach(i=>{
+    if(i<data.length){
+      const lbl=granularity==="day"?data[i].period.slice(5):(data[i].period.split("T")[1]||"").slice(0,5);
+      ctx.fillText(lbl,pad.l+i*gap+gap/2,pad.t+H+16);
+    }
+  });
+}
+
+function renderBreakdown(data){
+  const body=document.getElementById("bd-body");
+  const items=data?.items||[];
+  if(!items.length){body.innerHTML='<div class="empty">No data for this window.</div>';return;}
+  const maxC=Math.max(...items.map(r=>+(r.total_cost_usd||0)),0.000001);
+  let html='<table><thead><tr><th>Dimension</th><th class="r">Cost</th><th class="r">Input</th><th class="r">Output</th><th class="r">Calls</th><th></th></tr></thead><tbody>';
+  items.forEach(r=>{
+    const pct=Math.round((+(r.total_cost_usd||0)/maxC)*100);
+    html+=`<tr>
+      <td class="name">${r[dimKey]||'(unattributed)'}</td>
+      <td class="r">${fmt$(r.total_cost_usd)}</td>
+      <td class="r">${fmtK(r.input_tokens)}</td>
+      <td class="r">${fmtK(r.output_tokens)}</td>
+      <td class="r">${(r.event_count||0).toLocaleString()}</td>
+      <td style="padding-left:10px"><div class="bar-w"><div class="bar-f" style="width:${pct}%"></div></div></td>
+    </tr>`;
+  });
+  body.innerHTML=html+'</tbody></table>';
+}
+
+function renderReconciliation(data){
+  const body=document.getElementById("recon-body");
+  const runs=data?.runs||[];
+  if(!runs.length){
+    body.innerHTML=`<div class="empty">No runs yet — first run at 06:00 UTC tomorrow.</div>
+    <div class="next-box">
+      <div class="next-l">Next scheduled run</div>
+      <div class="next-v">Tomorrow · 06:00 UTC</div>
+      <div class="next-s">Computed cost vs AWS billed (CUR) variance report</div>
+    </div>`;return;
+  }
+  let html='<table><thead><tr><th>Date</th><th class="r">Computed</th><th class="r">Billed</th><th class="r">Variance</th></tr></thead><tbody>';
+  runs.forEach(r=>{
+    const vp=parseFloat(r.variance_pct||0);
+    const vc=Math.abs(vp)<5?"var(--text2)":Math.abs(vp)<10?"var(--amber)":"var(--red)";
+    html+=`<tr>
+      <td>${r.run_date}</td>
+      <td class="r">${fmt$(r.computed_cost_usd)}</td>
+      <td class="r">${r.cur_available?fmt$(r.billed_cost_usd):"—"}</td>
+      <td class="r" style="color:${vc};font-weight:500">${r.cur_available?(vp>0?"+":"")+vp.toFixed(1)+"%":"pending"}</td>
+    </tr>`;
+  });
+  body.innerHTML=html+'</tbody></table>';
+}
+
+function renderCoverage(data){
+  const body=document.getElementById("cov-body");
+  if(!data){body.innerHTML='<div class="spin"></div>';return;}
+  const pct=+(data.coverage_pct||100);
+  const col=pct>=95?"var(--green)":pct>=80?"var(--amber)":"var(--red)";
+  const warn=pct<90?`<div class="warn-box">Coverage below 90% — uninstrumented Bedrock calls detected.</div>`:"";
+  body.innerHTML=`
+    <div class="cov-n" style="color:${col}">${fmtP(pct)}</div>
+    <div class="stat"><span>Wrapper events</span><span class="stat-v">${(data.wrapper_events||0).toLocaleString()}</span></div>
+    <div class="stat"><span>Backfill events</span><span class="stat-v">${(data.backfill_events||0).toLocaleString()}</span></div>
+    <div class="stat"><span>Total</span><span class="stat-v">${(data.total_events||0).toLocaleString()}</span></div>
+    ${warn}`;
+}
+
+async function loadAll(){
+  const{start,end}=tw();
+  document.getElementById("spin").style.display="inline-block";
+  document.getElementById("err-box").style.display="none";
+  document.getElementById("ts-label").textContent=`${windowHours}h · ${granularity}`;
+
+  try{
+    const[sum,ts,recon,cov,bd]=await Promise.all([
+      qfetch("summary",{start,end}),
+      qfetch("timeseries",{start,end,granularity}),
+      qfetch("reconciliation",{limit:"10"}),
+      qfetch("coverage"),
+      qfetch(dimPath(),{start,end}),
+    ]);
+
+    document.getElementById("k-cost").textContent=fmt$(sum.total_cost_usd);
+    document.getElementById("k-calls").textContent=`${(sum.total_events||0).toLocaleString()} calls`;
+    document.getElementById("k-in").textContent=fmtK(sum.total_input_tokens);
+    document.getElementById("k-in-avg").textContent=sum.total_events?`${Math.round(sum.total_input_tokens/sum.total_events)} / call avg`:"—";
+    document.getElementById("k-out").textContent=fmtK(sum.total_output_tokens);
+    document.getElementById("k-out-avg").textContent=sum.total_events?`${Math.round(sum.total_output_tokens/sum.total_events)} / call avg`:"—";
+    const errPct=sum.total_events?sum.error_count/sum.total_events*100:0;
+    document.getElementById("k-err").textContent=fmtP(errPct);
+    document.getElementById("k-errc").textContent=`${sum.error_count||0} errors`;
+    const covPct=+(cov?.coverage_pct||100);
+    const covEl=document.getElementById("k-cov");
+    covEl.textContent=fmtP(covPct);
+    covEl.style.color=covPct>=95?"var(--green)":covPct>=80?"var(--amber)":"var(--red)";
+
+    drawLine("cost-chart",ts.series,"total_cost_usd",v=>v<0.001?`$${(+v).toFixed(6)}`:`$${(+v).toFixed(4)}`);
+    drawBars("token-chart",ts.series);
+    renderBreakdown(bd);
+    renderReconciliation(recon);
+    renderCoverage(cov);
+
+    document.getElementById("last-ref").textContent=new Date().toISOString().slice(11,16)+" UTC";
+  }catch(e){
+    const box=document.getElementById("err-box");
+    box.textContent="API error: "+e.message;
+    box.style.display="block";
+  }finally{
+    document.getElementById("spin").style.display="none";
+  }
+}
+
+function dimPath(){
+  return{agent_id:"by-agent",user_id:"by-user",application_id:"by-app",model_id:"by-model"}[dimKey]||"by-model";
+}
+
+document.querySelectorAll("[data-w]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-w]").forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on"); windowHours=+btn.dataset.w; loadAll();
+  });
+});
+document.querySelectorAll("[data-g]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-g]").forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on"); granularity=btn.dataset.g; loadAll();
+  });
+});
+document.querySelectorAll("[data-d]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-d]").forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on"); dimKey=btn.dataset.d; loadAll();
+  });
+});
+
+loadAll();
+setInterval(loadAll,60000);
+</script>
+</body>
 </html>
