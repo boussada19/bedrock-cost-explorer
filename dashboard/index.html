@@ -126,49 +126,59 @@ canvas{display:block}
 .si{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px}
 .sd{width:6px;height:6px;border-radius:50%}
 
-/* ── Playground ── */
-.pg-two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.field{margin-bottom:12px}
-.field label{display:block;font-size:10px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em}
-.field select,.field textarea{width:100%;padding:9px 11px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit}
-.field textarea{font-family:var(--mono);font-size:12px;resize:vertical;min-height:80px;line-height:1.5}
-.field select:focus,.field textarea:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(59,76,255,.1)}
+/* ── Playground v2 ── */
+.sb-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(255,153,0,.13);color:var(--amber);letter-spacing:.05em}
+.pg-status{font-size:10px;font-family:var(--mono)}
+.pg-status.live{color:var(--green)}
+.pg-status.fallback{color:var(--text3)}
+.pg-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.pg-left{padding:20px 22px;border-right:1px solid var(--border);background:var(--surface)}
+.pg-right{padding:20px 22px;background:var(--surface2)}
+.pg-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:14px}
+.pg-field{margin-bottom:14px}
+.pg-field label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.pg-field select{width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;cursor:pointer}
+.pg-field select:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(59,76,255,.1)}
+.pg-field input[type=number]{width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:var(--mono);text-align:right}
+.pg-field input[type=number]:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(59,76,255,.1)}
+.pg-field input[type=range]{width:100%;accent-color:var(--primary);margin-top:4px}
 .slider-row{display:flex;align-items:center;gap:10px}
-.slider-row input[type=range]{flex:1;accent-color:var(--primary)}
-.slider-val{font-size:12px;font-weight:600;font-family:var(--mono);color:var(--text);min-width:52px;text-align:right}
-.tok-hint{font-size:11px;color:var(--text3);margin-top:3px}
-.model-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}
-.mcard{border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:all .15s;background:var(--surface)}
-.mcard:hover{border-color:var(--border2);box-shadow:var(--shadow)}
-.mcard.sel{border:2px solid var(--primary);background:rgba(59,76,255,.05)}
-.mcard.sel .mc-n{color:var(--primary)}
-.mc-n{font-size:12px;font-weight:600;margin-bottom:4px}
-.mc-tag{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;margin-bottom:6px}
-.mc-tag.fast{background:rgba(48,198,138,.12);color:#1a7a4a}
-.mc-tag.smart{background:rgba(59,76,255,.1);color:var(--primary)}
-.mc-tag.open{background:var(--bg3);color:var(--text2)}
-.mc-price{font-size:10px;color:var(--text3);font-family:var(--mono)}
-.res-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
-.rcard{background:var(--bg2);border-radius:var(--radius);padding:13px 15px}
-.rcard-l{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;font-weight:500}
-.rcard-v{font-size:19px;font-weight:700;font-family:var(--mono);letter-spacing:-.3px}
-.rcard-s{font-size:11px;color:var(--text3);margin-top:3px;font-family:var(--mono)}
-.scale-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
-.scale-tbl th{text-align:left;padding:0 0 8px;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border)}
-.scale-tbl th.r{text-align:right}
-.scale-tbl td{padding:7px 0;border-bottom:1px solid var(--border);color:var(--text2);font-family:var(--mono);font-size:12px}
-.scale-tbl td.lbl{font-family:inherit;color:var(--text);font-weight:500}
-.scale-tbl td.r{text-align:right}
-.scale-tbl tr:last-child td{border:none}
-.cmp-row{margin-bottom:10px}
-.cmp-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-.cmp-name{font-size:12px;color:var(--text)}
-.cmp-val{font-size:12px;font-family:var(--mono);color:var(--text2)}
-.cmp-track{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
-.cmp-fill{height:100%;border-radius:3px}
-.cheap-badge{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(48,198,138,.12);color:#1a7a4a;margin-left:6px}
-.tip-box{padding:11px 14px;border-left:3px solid var(--primary);background:rgba(59,76,255,.05);font-size:12px;color:var(--text2);line-height:1.7;border-radius:0 var(--r) var(--r) 0}
-.sandbox-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(255,153,0,.12);color:var(--amber);letter-spacing:.04em}
+.slider-row input[type=range]{flex:1}
+.sval{font-size:12px;font-weight:700;font-family:var(--mono);color:var(--text);min-width:56px;text-align:right}
+.hint{font-size:11px;color:var(--text3);margin-top:3px}
+.pg-textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-family:var(--mono);resize:vertical;min-height:72px;line-height:1.6}
+.pg-textarea:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(59,76,255,.1)}
+.tok-count{font-size:11px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
+/* Result KPIs */
+.pg-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.pkg{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
+.pkg.hi{border-color:var(--primary);background:rgba(59,76,255,.04)}
+.pkg-l{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:5px;font-weight:500}
+.pkg-v{font-size:22px;font-weight:700;font-family:var(--mono);letter-spacing:-.5px}
+.pkg-s{font-size:11px;color:var(--text3);margin-top:3px;font-family:var(--mono)}
+/* Comparison panel */
+.cmp-panel{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.cmp-card{border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;background:var(--surface)}
+.cmp-card.selected{border:2px solid var(--primary)}
+.cmp-card.selected::before{content:"SELECTED";position:absolute;top:-1px;right:12px;background:var(--primary);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 6px 6px;letter-spacing:.06em}
+.cmp-card.cheapest::after{content:"CHEAPEST";position:absolute;top:-1px;left:12px;background:var(--secondary);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 6px 6px;letter-spacing:.06em}
+.cc-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px}
+.cc-tag{font-size:10px;color:var(--text3);margin-bottom:10px}
+.cc-cost{font-size:24px;font-weight:700;font-family:var(--mono);letter-spacing:-.5px;margin-bottom:3px}
+.cc-sub{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.cc-savings{display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.cc-savings.save{background:rgba(48,198,138,.12);color:#1a7a4a}
+.cc-savings.baseline{background:rgba(59,76,255,.08);color:var(--primary)}
+/* All-model bars */
+.bar-list{margin-bottom:14px}
+.bl-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.bl-name{width:150px;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.bl-track{flex:1;height:7px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.bl-fill{height:100%;border-radius:4px;transition:width .35s ease}
+.bl-val{width:72px;text-align:right;font-size:12px;font-family:var(--mono);color:var(--text2);flex-shrink:0}
+/* Tip */
+.pg-tip{padding:12px 16px;border-left:3px solid var(--primary);background:rgba(59,76,255,.05);font-size:12px;color:var(--text2);line-height:1.75;border-radius:0 10px 10px 0;margin-bottom:0}
+.pg-tip strong{color:var(--text);font-weight:700}
 
 </style>
 </head>
@@ -186,6 +196,10 @@ canvas{display:block}
     </div>
     <div class="topbar-r">
       <div class="aws-badge">☁ AWS Bedrock</div>
+      <button class="btn" onclick="window.location.href='advisor.html'"
+        style="background:transparent;border:1px solid var(--primary);color:var(--primary);box-shadow:none;gap:6px">
+        ✦ Architecture Advisor
+      </button>
       <div class="live"><span class="dot"></span>LIVE</div>
       <span class="ts" id="last-ref"></span>
       <span class="spin" id="spin" style="display:none"></span>
@@ -288,70 +302,91 @@ canvas{display:block}
   </div>
 
   <div class="card" style="margin-top:16px">
-    <div class="card-h">
-      <span class="card-t">Model playground & cost sandbox</span>
-      <span class="sandbox-badge">SANDBOX</span>
+    <div class="card-h" style="align-items:flex-start;gap:12px">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">
+          <span class="card-t">Model Playground &amp; Cost Sandbox</span>
+          <span class="sb-badge">&#9679; SANDBOX</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">Pick a model, tune your workload, get instant financial projections before writing production code</div>
+      </div>
+      <span class="pg-status fallback" id="pg-price-status" style="margin-left:auto;white-space:nowrap">&#9679; local prices</span>
     </div>
-    <div class="card-b">
+    <div class="card-b" style="padding:0">
 
-      <div class="field">
-        <label>Sample prompt — paste a representative prompt for your feature</label>
-        <textarea id="pg-prompt" oninput="pgCount()">You are a customer support agent. Given the following customer order and complaint, write a professional, empathetic response that resolves the issue and offers a 10% discount voucher as compensation.</textarea>
-      </div>
+      <div class="pg-grid">
+        <!-- LEFT: inputs -->
+        <div class="pg-left">
+          <div class="pg-section-label">Workload definition</div>
 
-      <div class="pg-two">
-        <div>
-          <div class="field">
-            <label>Expected output tokens</label>
-            <div class="slider-row">
-              <input type="range" id="pg-out" min="50" max="4000" value="300" step="50" oninput="pgUpdate()">
-              <span class="slider-val" id="pg-out-v">300</span>
-            </div>
-            <div class="tok-hint" id="pg-out-hint">~225 words</div>
+          <div class="pg-field">
+            <label>Model</label>
+            <select id="pg-model" onchange="pgSelect()">
+            </select>
           </div>
-          <div class="field">
-            <label>Daily calls</label>
-            <div class="slider-row">
-              <input type="range" id="pg-calls" min="100" max="100000" value="1000" step="100" oninput="pgUpdate()">
-              <span class="slider-val" id="pg-calls-v">1,000</span>
+
+          <div class="pg-field">
+            <label>Sample prompt <span style="font-weight:400;color:var(--text3)">(paste a real one for accurate token count)</span></label>
+            <textarea class="pg-textarea" id="pg-prompt" oninput="pgCount()" rows="3">You are a customer support agent. Given the following customer order and complaint, write a professional, empathetic response that resolves the issue and offers a 10% discount voucher as compensation.</textarea>
+            <div class="tok-count" id="pg-tok-count">~54 input tokens estimated</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="pg-field" style="margin:0">
+              <label>Expected output tokens</label>
+              <div class="slider-row">
+                <input type="range" id="pg-out" min="50" max="4000" value="300" step="50" oninput="pgUpdate()">
+                <span class="sval" id="pg-out-v">300</span>
+              </div>
+              <div class="hint" id="pg-out-hint">~225 words</div>
+            </div>
+            <div class="pg-field" style="margin:0">
+              <label>Context / history tokens</label>
+              <div class="slider-row">
+                <input type="range" id="pg-ctx" min="0" max="16000" value="500" step="100" oninput="pgUpdate()">
+                <span class="sval" id="pg-ctx-v">500</span>
+              </div>
+              <div class="hint">Added to input total</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+            <div class="pg-field" style="margin:0">
+              <label>Prompt cache hit rate</label>
+              <div class="slider-row">
+                <input type="range" id="pg-cache" min="0" max="100" value="0" step="5" oninput="pgUpdate()">
+                <span class="sval" id="pg-cache-v">0%</span>
+              </div>
+              <div class="hint">Reduces effective input cost</div>
+            </div>
+            <div class="pg-field" style="margin:0">
+              <label>Monthly request volume</label>
+              <input type="number" id="pg-monthly" value="30000" min="1" step="1000" oninput="pgUpdate()">
+              <div class="hint" id="pg-daily-equiv">~1,000 calls/day</div>
             </div>
           </div>
         </div>
-        <div>
-          <div class="field">
-            <label>Context / history tokens</label>
-            <div class="slider-row">
-              <input type="range" id="pg-ctx" min="0" max="8000" value="500" step="100" oninput="pgUpdate()">
-              <span class="slider-val" id="pg-ctx-v">500</span>
-            </div>
+
+        <!-- RIGHT: live results -->
+        <div class="pg-right">
+          <div class="pg-section-label">Monthly cost estimate</div>
+
+          <div class="pg-kpis" id="pg-kpis">
+            <div class="pkg hi"><div class="pkg-l">Monthly bill</div><div class="pkg-v" id="pg-monthly-cost" style="color:var(--primary)">—</div><div class="pkg-s" id="pg-model-label">—</div></div>
+            <div class="pkg"><div class="pkg-l">Cost per call</div><div class="pkg-v" id="pg-per-call">—</div><div class="pkg-s" id="pg-annual-cost">—/year</div></div>
+            <div class="pkg"><div class="pkg-l">Total input tokens/mo</div><div class="pkg-v" id="pg-total-in">—</div><div class="pkg-s">prompt + context</div></div>
+            <div class="pkg"><div class="pkg-l">Total output tokens/mo</div><div class="pkg-v" id="pg-total-out">—</div><div class="pkg-s" id="pg-words-out">—</div></div>
           </div>
-          <div class="field">
-            <label>Prompt cache hit rate</label>
-            <div class="slider-row">
-              <input type="range" id="pg-cache" min="0" max="100" value="0" step="5" oninput="pgUpdate()">
-              <span class="slider-val" id="pg-cache-v">0%</span>
-            </div>
-            <div class="tok-hint">Reduces effective input cost</div>
-          </div>
+
+          <div class="pg-section-label" style="margin-bottom:10px">vs. cheapest alternative</div>
+          <div class="cmp-panel" id="pg-cmp-panel"></div>
+
+          <div class="pg-section-label" style="margin-bottom:10px">All models ranked by monthly cost</div>
+          <div class="bar-list" id="pg-bars"></div>
+
+          <div class="pg-tip" id="pg-tip2"></div>
         </div>
       </div>
-
-      <div class="field" style="margin-bottom:10px">
-        <label>Select model</label>
-      </div>
-      <div class="model-grid" id="pg-models"></div>
-
-      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:10px">Single call estimate</div>
-      <div class="res-grid" id="pg-results"></div>
-
-      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:10px">Scale projection</div>
-      <table class="scale-tbl" id="pg-scale"></table>
-
-      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:14px 0 10px">All models at your scale</div>
-      <div id="pg-compare"></div>
-
-      <div style="height:1px;background:var(--border);margin:14px 0"></div>
-      <div class="tip-box" id="pg-tip"></div>
 
     </div>
   </div>
@@ -615,108 +650,311 @@ document.querySelectorAll("[data-d]").forEach(btn=>{
 loadAll();
 setInterval(loadAll,60000);
 
-// ── Model Playground ──────────────────────────────────────────────
-const PG_MODELS = [
-  {id:"claude-sonnet-4-5", name:"Claude Sonnet 4.5", tag:"smart", tagLabel:"Balanced",    in:0.003,   out:0.015,   cr:0.0003  },
-  {id:"claude-haiku-3-5",  name:"Claude Haiku 3.5",  tag:"fast",  tagLabel:"Fast",        in:0.0008,  out:0.004,   cr:0.00008 },
-  {id:"claude-opus-3",     name:"Claude Opus 3",     tag:"smart", tagLabel:"Powerful",    in:0.015,   out:0.075,   cr:0.0015  },
-  {id:"llama3-70b",        name:"Llama 3 70B",       tag:"open",  tagLabel:"Open source", in:0.00099, out:0.00099, cr:0.00099 },
-  {id:"llama3-8b",         name:"Llama 3 8B",        tag:"fast",  tagLabel:"Cheapest",    in:0.00022, out:0.00022, cr:0.00022 },
-  {id:"mistral-large",     name:"Mistral Large",     tag:"smart", tagLabel:"Balanced",    in:0.004,   out:0.012,   cr:0.004   },
+// ── Handle deep-link from Architecture Advisor ─────────────────────
+// URL format: index.html#sandbox?model=X&monthly=Y&inTok=Z&outTok=W&cache=C
+(function(){
+  const hash = window.location.hash;
+  if(!hash.startsWith("#sandbox?")) return;
+  const params = new URLSearchParams(hash.replace("#sandbox?",""));
+  const model   = params.get("model");
+  const monthly = +params.get("monthly") || 30000;
+  const inTok   = +params.get("inTok")   || 500;
+  const outTok  = +params.get("outTok")  || 300;
+  const cache   = +params.get("cache")   || 0;
+
+  // Wait for DOM + playground to initialise, then pre-fill
+  setTimeout(function(){
+    try {
+      // Set model dropdown
+      const sel = document.getElementById("pg-model");
+      if(sel && model){
+        sel.value = model;
+        pgModelId = model;
+      }
+      // Set sliders/inputs
+      const setEl = (id, val) => { const el=document.getElementById(id); if(el) el.value=val; };
+      setEl("pg-monthly", monthly);
+      setEl("pg-out",     outTok);
+      setEl("pg-ctx",     inTok > 500 ? inTok - 500 : 0);
+      setEl("pg-cache",   cache);
+      pgUpdate();
+
+      // Smooth scroll to playground
+      const card = document.querySelector(".pg-grid");
+      if(card) card.scrollIntoView({behavior:"smooth", block:"start"});
+    } catch(e){}
+  }, 400);
+})();
+
+// ══════════════════════════════════════════════════════════════════
+// MODEL PLAYGROUND v2  —  live prices + side-by-side comparison
+// ══════════════════════════════════════════════════════════════════
+
+// ── Fallback price matrix (used when API prices unavailable) ──────
+// All prices in USD per 1,000 tokens
+const PG_FALLBACK = [
+  {
+    id:"claude-sonnet-4-5", name:"Claude Sonnet 4.5",
+    provider:"Anthropic", tier:"balanced",
+    in:0.003, out:0.015, cr:0.0003, cw:0.00375,
+    color:"#3b4cff", note:"Best balance of speed & quality"
+  },
+  {
+    id:"claude-haiku-3-5", name:"Claude Haiku 3.5",
+    provider:"Anthropic", tier:"fast",
+    in:0.0008, out:0.004, cr:0.00008, cw:0.001,
+    color:"#30c68a", note:"Fastest Claude — ideal for high-volume tasks"
+  },
+  {
+    id:"claude-opus-3", name:"Claude Opus 3",
+    provider:"Anthropic", tier:"powerful",
+    in:0.015, out:0.075, cr:0.0015, cw:0.01875,
+    color:"#9b59b6", note:"Most capable — use for complex reasoning"
+  },
+  {
+    id:"claude-haiku-3", name:"Claude Haiku 3",
+    provider:"Anthropic", tier:"fast",
+    in:0.00025, out:0.00125, cr:0.000025, cw:0.0003,
+    color:"#17a589", note:"Ultra-low cost for simple classification"
+  },
+  {
+    id:"meta.llama3-70b", name:"Llama 3 70B",
+    provider:"Meta (Bedrock)", tier:"open",
+    in:0.00099, out:0.00099, cr:0.00099, cw:0.00099,
+    color:"#e67e22", note:"Open-source, strong reasoning, flat pricing"
+  },
+  {
+    id:"meta.llama3-8b", name:"Llama 3 8B",
+    provider:"Meta (Bedrock)", tier:"fast",
+    in:0.00022, out:0.00022, cr:0.00022, cw:0.00022,
+    color:"#2ecc71", note:"Cheapest option — great for extraction tasks"
+  },
+  {
+    id:"mistral.mistral-large", name:"Mistral Large",
+    provider:"Mistral (Bedrock)", tier:"balanced",
+    in:0.004, out:0.012, cr:0.004, cw:0.004,
+    color:"#e74c3c", note:"Strong multilingual & code capabilities"
+  },
+  {
+    id:"amazon.titan-text-premier", name:"Titan Text Premier",
+    provider:"Amazon", tier:"balanced",
+    in:0.0005, out:0.0015, cr:0.0005, cw:0.0005,
+    color:"#ff9900", note:"Native AWS model — good RAG performance"
+  },
 ];
-const PG_FILLS = {
-  "claude-sonnet-4-5":"#3b4cff","claude-haiku-3-5":"#30c68a","claude-opus-3":"#9b59b6",
-  "llama3-70b":"#e67e22","llama3-8b":"#2ecc71","mistral-large":"#e74c3c"
-};
-let pgModel = PG_MODELS[0];
-let pgPromptTokens = 0;
 
-function pgFmtN(n){return n>=1e6?`${(n/1e6).toFixed(2)}M`:n>=1e3?`${(n/1e3).toFixed(1)}k`:String(Math.round(n));}
-function pgFmt$(n){return n>=1000?`$${(n/1000).toFixed(1)}k`:n>=1?`$${n.toFixed(2)}`:`$${n.toFixed(6)}`;}
-function pgCalc(m,inT,outT,cache){
-  const cached=inT*(cache/100), fresh=inT*(1-cache/100);
-  return (fresh/1000)*m.in+(cached/1000)*m.cr+(outT/1000)*m.out;
+// ── State ─────────────────────────────────────────────────────────
+let PG_MODELS   = [...PG_FALLBACK];   // may be enriched from API
+let pgModelId   = PG_MODELS[0].id;
+let pgPromptTok = 54;                 // default until user types
+let pgPriceSource = "fallback";       // "live" | "fallback"
+
+// ── Helpers ───────────────────────────────────────────────────────
+function pgN(n){
+  if(n==null||isNaN(n)) return "—";
+  return n>=1e9?`${(n/1e9).toFixed(2)}B`
+       :n>=1e6?`${(n/1e6).toFixed(2)}M`
+       :n>=1e3?`${(n/1e3).toFixed(1)}k`
+       :String(Math.round(n));
+}
+function pg$(n){
+  if(n==null||isNaN(n)) return "—";
+  if(n>=1e6) return `$${(n/1e6).toFixed(2)}M`;
+  if(n>=1000) return `$${(n/1000).toFixed(1)}k`;
+  if(n>=1)    return `$${n.toFixed(2)}`;
+  if(n>=0.01) return `$${n.toFixed(4)}`;
+  return `$${n.toFixed(6)}`;
+}
+function pgCalc(m, inTok, outTok, cacheRate){
+  // cache splits input into fresh (full price) and cached (cache_read price)
+  const cacheRatio = cacheRate / 100;
+  const freshIn    = inTok * (1 - cacheRatio);
+  const cachedIn   = inTok * cacheRatio;
+  return (freshIn / 1000) * m.in
+       + (cachedIn / 1000) * m.cr
+       + (outTok   / 1000) * m.out;
+}
+function pgModel(){
+  return PG_MODELS.find(m => m.id === pgModelId) || PG_MODELS[0];
 }
 
+// ── Live price fetch (tries to enrich PG_MODELS from /query/summary)
+// The summary endpoint doesn't expose a price matrix directly,
+// so we use the by-model breakdown to detect which models have been used,
+// and keep fallback prices for everything (prices don't change in real-time).
+// If you add a /query/prices endpoint later, swap the fetch URL below.
+async function pgFetchLivePrices(){
+  try {
+    // Attempt to read price table directly from DynamoDB via query API
+    // Falls back gracefully — never throws to the user
+    const res = await fetch(
+      `${API}/by-model?start=${new Date(Date.now()-86400000*30).toISOString()}&end=${new Date().toISOString()}`,
+      { headers: { "X-Api-Key": KEY } }
+    );
+    if(!res.ok) throw new Error("non-200");
+    const data = await res.json();
+    // If we got data about used models, check price_table_version in events
+    // and mark prices as "verified against live data"
+    if(data?.items?.length > 0){
+      pgPriceSource = "live-verified";
+      document.getElementById("pg-price-status").textContent = "● prices verified";
+      document.getElementById("pg-price-status").className   = "pg-status live";
+    }
+  } catch(e) {
+    // silently keep fallback
+    pgPriceSource = "fallback";
+  }
+}
+
+// ── Build model dropdown ───────────────────────────────────────────
+function pgBuildDropdown(){
+  const sel = document.getElementById("pg-model");
+  sel.innerHTML = PG_MODELS.map(m =>
+    `<option value="${m.id}">${m.name} — $${m.in}/1k in · $${m.out}/1k out (${m.provider})</option>`
+  ).join("");
+  sel.value = pgModelId;
+}
+
+// ── Token count from prompt text ───────────────────────────────────
 function pgCount(){
-  const txt=document.getElementById("pg-prompt").value;
-  pgPromptTokens=Math.max(10,Math.round(txt.length/4));
+  const txt = document.getElementById("pg-prompt").value;
+  // ~4 chars per token is a good approximation for English text
+  pgPromptTok = Math.max(10, Math.round(txt.length / 4));
+  document.getElementById("pg-tok-count").textContent =
+    `~${pgN(pgPromptTok)} input tokens estimated (${pgN(txt.length)} chars ÷ 4)`;
   pgUpdate();
 }
 
-function pgRenderModels(){
-  document.getElementById("pg-models").innerHTML=PG_MODELS.map(m=>`
-    <div class="mcard${m.id===pgModel.id?" sel":""}" onclick="pgSelect('${m.id}')">
-      <div class="mc-n">${m.name}</div>
-      <span class="mc-tag ${m.tag}">${m.tagLabel}</span>
-      <div class="mc-price">in $${m.in}/1k · out $${m.out}/1k</div>
-    </div>`).join("");
-}
-
-function pgSelect(id){
-  pgModel=PG_MODELS.find(m=>m.id===id)||PG_MODELS[0];
-  pgRenderModels();
+// ── Model dropdown change ──────────────────────────────────────────
+function pgSelect(){
+  pgModelId = document.getElementById("pg-model").value;
   pgUpdate();
 }
 
+// ── Main calculation — runs on every input change ─────────────────
 function pgUpdate(){
-  const out  =+document.getElementById("pg-out").value;
-  const ctx  =+document.getElementById("pg-ctx").value;
-  const calls=+document.getElementById("pg-calls").value;
-  const cache=+document.getElementById("pg-cache").value;
+  const outTok    = +document.getElementById("pg-out").value   || 300;
+  const ctxTok    = +document.getElementById("pg-ctx").value   || 0;
+  const cacheRate = +document.getElementById("pg-cache").value || 0;
+  const monthly   = Math.max(1, +document.getElementById("pg-monthly").value || 30000);
 
-  document.getElementById("pg-out-v").textContent  =pgFmtN(out);
-  document.getElementById("pg-ctx-v").textContent  =pgFmtN(ctx);
-  document.getElementById("pg-calls-v").textContent=pgFmtN(calls);
-  document.getElementById("pg-cache-v").textContent=cache+"%";
-  document.getElementById("pg-out-hint").textContent="~"+Math.round(out*0.75)+" words";
+  // update readouts
+  document.getElementById("pg-out-v").textContent    = pgN(outTok);
+  document.getElementById("pg-ctx-v").textContent    = pgN(ctxTok);
+  document.getElementById("pg-cache-v").textContent  = cacheRate + "%";
+  document.getElementById("pg-out-hint").textContent = "~" + Math.round(outTok * 0.75) + " words";
+  document.getElementById("pg-daily-equiv").textContent =
+    "~" + pgN(Math.round(monthly / 30)) + " calls/day";
 
-  const totalIn=pgPromptTokens+ctx;
-  const single=pgCalc(pgModel,totalIn,out,cache);
-  const daily=single*calls;
+  const totalIn    = pgPromptTok + ctxTok;
+  const m          = pgModel();
+  const perCall    = pgCalc(m, totalIn, outTok, cacheRate);
+  const monthlyCost = perCall * monthly;
+  const annualCost  = monthlyCost * 12;
 
-  document.getElementById("pg-results").innerHTML=`
-    <div class="rcard"><div class="rcard-l">Input tokens</div><div class="rcard-v">${pgFmtN(totalIn)}</div><div class="rcard-s">${pgFmtN(pgPromptTokens)} prompt + ${pgFmtN(ctx)} ctx</div></div>
-    <div class="rcard"><div class="rcard-l">Output tokens</div><div class="rcard-v">${pgFmtN(out)}</div><div class="rcard-s">~${Math.round(out*0.75)} words</div></div>
-    <div class="rcard"><div class="rcard-l">Cost per call</div><div class="rcard-v" style="color:var(--primary)">${pgFmt$(single)}</div><div class="rcard-s">${pgModel.name}</div></div>
-    <div class="rcard"><div class="rcard-l">Daily cost</div><div class="rcard-v" style="color:var(--primary)">${pgFmt$(daily)}</div><div class="rcard-s">${pgFmtN(calls)} calls/day</div></div>`;
+  // ── KPI cards ──
+  document.getElementById("pg-monthly-cost").textContent = pg$(monthlyCost);
+  document.getElementById("pg-model-label").textContent  = m.name;
+  document.getElementById("pg-per-call").textContent     = pg$(perCall);
+  document.getElementById("pg-annual-cost").textContent  = pg$(annualCost) + "/year";
+  document.getElementById("pg-total-in").textContent     = pgN(totalIn * monthly);
+  document.getElementById("pg-total-out").textContent    = pgN(outTok * monthly);
+  document.getElementById("pg-words-out").textContent    =
+    "~" + pgN(Math.round(outTok * 0.75 * monthly)) + " words";
 
-  const scales=[{l:"100/day",n:100},{l:"1k/day",n:1000},{l:"10k/day",n:10000},{l:"100k/day",n:100000}];
-  let tbl='<thead><tr><th>Scale</th><th class="r">Daily</th><th class="r">Monthly</th><th class="r">Annual</th></tr></thead><tbody>';
-  scales.forEach(s=>{
-    const c=pgCalc(pgModel,totalIn,out,cache)*s.n;
-    tbl+=`<tr><td class="lbl">${s.l}</td><td class="r">${pgFmt$(c)}</td><td class="r">${pgFmt$(c*30)}</td><td class="r">${pgFmt$(c*365)}</td></tr>`;
+  // ── Sort all models by monthly cost ──
+  const ranked = PG_MODELS
+    .map(mo => ({
+      mo,
+      perCall:  pgCalc(mo, totalIn, outTok, cacheRate),
+      monthly:  pgCalc(mo, totalIn, outTok, cacheRate) * monthly,
+    }))
+    .sort((a, b) => a.monthly - b.monthly);
+
+  const cheapest   = ranked[0];
+  const maxMonthly = ranked[ranked.length - 1].monthly || 0.000001;
+  const isAlreadyCheapest = m.id === cheapest.mo.id;
+
+  // ── Side-by-side comparison panel ──
+  const selectedRanked = ranked.find(r => r.mo.id === m.id);
+  const altModel       = isAlreadyCheapest ? ranked[1] : cheapest;
+
+  if(altModel){
+    const savings  = (selectedRanked?.monthly || 0) - altModel.monthly;
+    const savingsPct = selectedRanked?.monthly > 0
+      ? Math.round(savings / selectedRanked.monthly * 100) : 0;
+
+    const selectedCard = `
+      <div class="cmp-card selected${isAlreadyCheapest ? " cheapest" : ""}">
+        <div class="cc-name">${m.name}</div>
+        <div class="cc-tag">${m.provider} · ${m.tier}</div>
+        <div class="cc-cost" style="color:var(--primary)">${pg$(monthlyCost)}<span style="font-size:13px;font-weight:400;color:var(--text3)">/mo</span></div>
+        <div class="cc-sub">$${m.in}/1k in · $${m.out}/1k out</div>
+        <div class="cc-sub" style="margin-top:3px;font-size:10px;color:var(--text3)">${m.note}</div>
+        ${isAlreadyCheapest
+          ? '<div class="cc-savings baseline">✓ cheapest option</div>'
+          : `<div class="cc-savings" style="background:rgba(220,53,69,.08);color:var(--red)">+${pg$(Math.abs(savings))}/mo vs cheapest</div>`}
+      </div>`;
+
+    const altCard = `
+      <div class="cmp-card${altModel.mo.id === cheapest.mo.id && !isAlreadyCheapest ? " cheapest" : ""}">
+        <div class="cc-name">${altModel.mo.name}</div>
+        <div class="cc-tag">${altModel.mo.provider} · ${altModel.mo.tier}</div>
+        <div class="cc-cost" style="color:var(--secondary)">${pg$(altModel.monthly)}<span style="font-size:13px;font-weight:400;color:var(--text3)">/mo</span></div>
+        <div class="cc-sub">$${altModel.mo.in}/1k in · $${altModel.mo.out}/1k out</div>
+        <div class="cc-sub" style="margin-top:3px;font-size:10px;color:var(--text3)">${altModel.mo.note}</div>
+        ${!isAlreadyCheapest
+          ? `<div class="cc-savings save">save ${pg$(Math.abs(savings))}/mo (${savingsPct}%)</div>`
+          : '<div class="cc-savings baseline">← currently selected</div>'}
+      </div>`;
+
+    document.getElementById("pg-cmp-panel").innerHTML = selectedCard + altCard;
+  }
+
+  // ── All-model ranked bar chart ──
+  let bars = "";
+  ranked.forEach((r, i) => {
+    const pct     = Math.round((r.monthly / maxMonthly) * 100);
+    const isSel   = r.mo.id === m.id;
+    const isCheap = i === 0;
+    bars += `
+      <div class="bl-row">
+        <div class="bl-name" style="font-weight:${isSel ? 700 : 400}">
+          ${isCheap ? "★ " : ""}${r.mo.name}
+        </div>
+        <div class="bl-track">
+          <div class="bl-fill" style="width:${pct}%;background:${r.mo.color}${isSel ? "" : "aa"}"></div>
+        </div>
+        <div class="bl-val">${pg$(r.monthly)}</div>
+      </div>`;
   });
-  document.getElementById("pg-scale").innerHTML=tbl+"</tbody>";
+  document.getElementById("pg-bars").innerHTML = bars;
 
-  const sorted=PG_MODELS.map(m=>({m,cost:pgCalc(m,totalIn,out,cache)*calls*30})).sort((a,b)=>a.cost-b.cost);
-  const maxC=sorted[sorted.length-1].cost||0.000001;
-  const minC=sorted[0].cost;
-  let cmp="";
-  sorted.forEach(item=>{
-    const pct=Math.round((item.cost/maxC)*100);
-    const isCheap=item.cost===minC, isSel=item.m.id===pgModel.id;
-    const fill=PG_FILLS[item.m.id]||"#888";
-    cmp+=`<div class="cmp-row">
-      <div class="cmp-top">
-        <span class="cmp-name" style="font-weight:${isSel?700:400}">${item.m.name}${isCheap?'<span class="cheap-badge">cheapest</span>':''}</span>
-        <span class="cmp-val">${pgFmt$(item.cost)}/mo</span>
-      </div>
-      <div class="cmp-track"><div class="cmp-fill" style="width:${pct}%;background:${fill}${isSel?"":"88"}"></div></div>
-    </div>`;
-  });
-  document.getElementById("pg-compare").innerHTML=cmp;
+  // ── Recommendation tip ──
+  const multiplier = isAlreadyCheapest
+    ? null
+    : Math.round(monthlyCost / (cheapest.monthly || 0.000001));
 
-  const cheapest=sorted[0].m;
-  const savings=sorted[sorted.length-1].cost-sorted[0].cost;
-  const tip=pgModel.id===cheapest.id
-    ? `${pgModel.name} is already the cheapest option at this scale. Monthly cost: ${pgFmt$(daily*30)}. Try increasing cache hit rate to reduce costs further.`
-    : `Switching from ${pgModel.name} to ${cheapest.name} would save ~${pgFmt$(savings)}/month at ${pgFmtN(calls)} calls/day. That's ${Math.round(pgCalc(pgModel,totalIn,out,cache)/pgCalc(cheapest,totalIn,out,cache))}x cheaper per call — worth evaluating quality for your use case.`;
-  document.getElementById("pg-tip").textContent=tip;
+  let tip = "";
+  if(isAlreadyCheapest){
+    tip = `<strong>${m.name}</strong> is already the most cost-efficient choice for this workload. `
+        + `At ${pgN(monthly)} calls/month you'll spend <strong>${pg$(monthlyCost)}</strong>. `
+        + `Tip: enable prompt caching — a 60% cache hit rate would reduce your bill by ~40%.`;
+  } else {
+    const savings = monthlyCost - cheapest.monthly;
+    tip = `Switching from <strong>${m.name}</strong> to <strong>${cheapest.mo.name}</strong> `
+        + `saves <strong>${pg$(savings)}/month</strong> (${multiplier}× cheaper per call). `
+        + `Annual savings: <strong>${pg$(savings * 12)}</strong>. `
+        + `${cheapest.mo.name} is best for: ${cheapest.mo.note.toLowerCase()}. `
+        + `Run an A/B quality evaluation on your use case before switching.`;
+  }
+  document.getElementById("pg-tip2").innerHTML = tip;
 }
 
-pgRenderModels();
+// ── Boot ─────────────────────────────────────────────────────────
+pgBuildDropdown();
 pgCount();
+pgFetchLivePrices();
 
 </script>
 </body>

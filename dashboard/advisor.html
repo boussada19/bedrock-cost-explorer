@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Bedrock Advisor — Cost Explorer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#3b4cff;--primary-h:#3344e6;--secondary:#30c68a;
+  --accent:#ff9900;--bg:#f0f2f5;--surface:#ffffff;--surface2:#f8f9fb;
+  --text:#212529;--text2:#555b63;--text3:#9ea5ad;
+  --border:#dee2e6;--border2:#c8cdd3;
+  --mono:'SF Mono','Fira Code',Consolas,monospace;
+  --radius:14px;--shadow:0 2px 12px rgba(0,0,0,.07);
+  --green:#30c68a;--amber:#ff9900;--red:#dc3545;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0e0f14;--surface:#16181f;--surface2:#1e2028;
+  --text:#e8eaf0;--text2:#9098a8;--text3:#545c6a;
+  --border:rgba(255,255,255,.09);--border2:rgba(255,255,255,.16);
+  --shadow:0 2px 12px rgba(0,0,0,.3);
+}}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.5;min-height:100vh}
+#app{max-width:820px;margin:0 auto;padding:28px 24px}
+
+/* topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:24px}
+.logo-zone{display:flex;align-items:center;gap:12px}
+.logo-img{height:34px;width:auto;object-fit:contain}
+.logo-fb{width:34px;height:34px;border-radius:8px;background:var(--primary);display:none;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700}
+.prod-name{font-size:14px;font-weight:600;color:var(--primary)}
+.prod-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.back-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+.back-btn:hover{background:var(--surface2);border-color:var(--border2)}
+
+/* progress bar */
+.progress-wrap{margin-bottom:28px}
+.progress-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.progress-label{font-size:12px;font-weight:600;color:var(--text2)}
+.progress-step{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.progress-track{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .4s ease}
+
+/* questionnaire */
+.q-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.q-header{padding:24px 28px 20px;border-bottom:1px solid var(--border)}
+.q-num{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--primary);margin-bottom:6px}
+.q-text{font-size:17px;font-weight:600;color:var(--text);line-height:1.45}
+.q-sub{font-size:12px;color:var(--text3);margin-top:6px;line-height:1.6}
+.q-body{padding:20px 28px 24px}
+
+/* option buttons */
+.options-grid{display:grid;gap:10px}
+.options-grid.cols2{grid-template-columns:1fr 1fr}
+.opt{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s;background:var(--surface)}
+.opt:hover{border-color:var(--primary);background:rgba(59,76,255,.03)}
+.opt.sel{border:2px solid var(--primary);background:rgba(59,76,255,.05)}
+.opt.multi.sel{border:2px solid var(--secondary);background:rgba(48,198,138,.05)}
+.opt-icon{font-size:22px;line-height:1;flex-shrink:0;margin-top:1px}
+.opt-content{}
+.opt-label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.opt-desc{font-size:11px;color:var(--text3);line-height:1.5}
+.opt-check{margin-left:auto;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s;margin-top:2px}
+.opt.sel .opt-check{background:var(--primary);border-color:var(--primary);color:#fff}
+.opt.multi.sel .opt-check{background:var(--secondary);border-color:var(--secondary);color:#fff}
+
+/* multi-select hint */
+.multi-hint{font-size:11px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:5px}
+
+/* range + number inputs */
+.range-field{margin-bottom:16px}
+.range-field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px}
+.range-row{display:flex;align-items:center;gap:12px}
+.range-row input[type=range]{flex:1;accent-color:var(--primary)}
+.range-val{font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text);min-width:60px;text-align:right}
+.range-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px}
+.num-field{margin-bottom:16px}
+.num-field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.num-field input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:var(--mono)}
+.num-field input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(59,76,255,.1)}
+.num-hint{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* nav buttons */
+.q-nav{display:flex;align-items:center;justify-content:space-between;padding:0 28px 24px}
+.btn-prev{padding:9px 20px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-prev:hover{background:var(--surface2)}
+.btn-next{padding:9px 24px;border-radius:var(--radius);border:none;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 2px 8px rgba(59,76,255,.3)}
+.btn-next:hover{background:var(--primary-h);box-shadow:0 4px 14px rgba(59,76,255,.4);transform:translateY(-1px)}
+.btn-next:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* results page */
+.result-hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px;margin-bottom:16px;text-align:center}
+.result-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(59,76,255,.1);color:var(--primary);margin-bottom:16px;letter-spacing:.04em}
+.result-model{font-size:26px;font-weight:700;color:var(--text);margin-bottom:4px}
+.result-reason{font-size:13px;color:var(--text2);max-width:500px;margin:0 auto 20px;line-height:1.7}
+.result-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:20px}
+.chip{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border)}
+.chip.green{background:rgba(48,198,138,.1);color:#1a7a4a;border-color:rgba(48,198,138,.3)}
+.chip.blue{background:rgba(59,76,255,.1);color:var(--primary);border-color:rgba(59,76,255,.3)}
+.chip.amber{background:rgba(255,153,0,.1);color:#b35e00;border-color:rgba(255,153,0,.3)}
+.cost-preview{display:inline-flex;align-items:baseline;gap:6px;padding:12px 24px;background:rgba(59,76,255,.06);border-radius:12px;border:1px solid rgba(59,76,255,.15)}
+.cost-preview-v{font-size:28px;font-weight:700;font-family:var(--mono);color:var(--primary)}
+.cost-preview-l{font-size:12px;color:var(--text3)}
+
+/* result sections */
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.res-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.res-card-t{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin-bottom:14px}
+.arch-step{display:flex;align-items:flex-start;gap:10px;margin-bottom:11px}
+.arch-num{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.arch-text{font-size:12px;color:var(--text2);line-height:1.6}
+.arch-text strong{color:var(--text);font-weight:600}
+.warn-box{padding:11px 14px;border-left:3px solid var(--amber);background:rgba(255,153,0,.06);font-size:12px;color:var(--text2);line-height:1.7;border-radius:0 10px 10px 0;margin-bottom:14px}
+.warn-box strong{color:var(--text)}
+.code-block{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:12px;color:var(--text2);line-height:1.7;overflow-x:auto;margin-bottom:14px;white-space:pre}
+.kw{color:var(--primary)}
+.str{color:var(--green)}
+.cmt{color:var(--text3)}
+.model-alt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.alt-card{border:1px solid var(--border);border-radius:10px;padding:13px;background:var(--surface);text-align:center}
+.alt-card.rec{border:2px solid var(--primary);background:rgba(59,76,255,.04)}
+.alt-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px}
+.alt-cost{font-size:16px;font-weight:700;font-family:var(--mono);color:var(--primary);margin-bottom:2px}
+.alt-note{font-size:10px;color:var(--text3)}
+.result-actions{display:flex;gap:10px;justify-content:center;margin-top:20px}
+.btn-primary{padding:11px 28px;border-radius:var(--radius);border:none;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(59,76,255,.3);transition:all .15s}
+.btn-primary:hover{background:var(--primary-h);transform:translateY(-1px)}
+.btn-outline{padding:11px 24px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-outline:hover{background:var(--surface2)}
+.restart-link{font-size:12px;color:var(--text3);text-align:center;margin-top:12px;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo-zone">
+      <img src="logo.png" class="logo-img" alt="Logo"
+        onerror="this.style.display='none';document.getElementById('lfb').style.display='flex'"/>
+      <div id="lfb" class="logo-fb">BCE</div>
+      <div>
+        <div class="prod-name">Bedrock Cost Explorer</div>
+        <div class="prod-sub">Architecture Advisor</div>
+      </div>
+    </div>
+    <button class="back-btn" onclick="window.location.href='index.html'">
+      ← Back to dashboard
+    </button>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-top">
+      <span class="progress-label" id="progress-label">What are you building?</span>
+      <span class="progress-step" id="progress-step">Step 1 of 7</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill" style="width:14%"></div>
+    </div>
+  </div>
+
+  <!-- Question card -->
+  <div class="q-card" id="q-card"></div>
+
+  <!-- Results -->
+  <div id="results" style="display:none"></div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// QUESTIONNAIRE DATA
+// ═══════════════════════════════════════════════════════════════════
+const QUESTIONS = [
+  {
+    id: "use_case",
+    num: "01",
+    text: "What are you primarily building?",
+    sub: "Pick the option that best describes your feature. This drives the architecture recommendation.",
+    type: "single",
+    cols: 2,
+    options: [
+      { id:"chatbot",      icon:"💬", label:"Conversational chatbot",     desc:"Customer support, internal assistant, FAQ bot" },
+      { id:"rag",          icon:"📚", label:"RAG / Knowledge search",      desc:"Q&A over documents, semantic search, knowledge base" },
+      { id:"summarize",    icon:"📝", label:"Summarization",               desc:"Long documents, meeting notes, articles → concise output" },
+      { id:"classify",     icon:"🏷️", label:"Classification & extraction", desc:"Sentiment, intent, entity extraction, routing" },
+      { id:"codegen",      icon:"💻", label:"Code generation / review",    desc:"Autocomplete, code explanation, bug detection" },
+      { id:"agents",       icon:"🤖", label:"Autonomous agents",           desc:"Multi-step workflows, tool use, planning, orchestration" },
+      { id:"image",        icon:"🖼️", label:"Image / multimodal",         desc:"Image analysis, document OCR, visual Q&A" },
+      { id:"batch",        icon:"⚡", label:"Batch / async processing",    desc:"Bulk data transformation, overnight jobs, pipelines" },
+    ]
+  },
+  {
+    id: "scale",
+    num: "02",
+    text: "What's your expected scale?",
+    sub: "Be honest — over-provisioning is expensive, under-provisioning breaks production.",
+    type: "single",
+    cols: 1,
+    options: [
+      { id:"proto",   icon:"🧪", label:"Prototype / POC",      desc:"< 1,000 calls/month · internal testing · no SLA" },
+      { id:"small",   icon:"🌱", label:"Small production",      desc:"1k – 50k calls/month · small team or internal tool" },
+      { id:"medium",  icon:"📈", label:"Growing product",       desc:"50k – 500k calls/month · external users · needs monitoring" },
+      { id:"large",   icon:"🚀", label:"High-volume production",desc:"500k – 5M calls/month · SLA required · cost optimization critical" },
+      { id:"massive", icon:"🌐", label:"Enterprise scale",      desc:"> 5M calls/month · reserved throughput · FinOps team involved" },
+    ]
+  },
+  {
+    id: "latency",
+    num: "03",
+    text: "How sensitive is your use case to latency?",
+    sub: "This affects whether you use streaming, async queues, or batch endpoints.",
+    type: "single",
+    cols: 1,
+    options: [
+      { id:"realtime",  icon:"⚡", label:"Real-time interactive",   desc:"User is waiting for the response — every 100ms counts" },
+      { id:"near",      icon:"🕐", label:"Near real-time",           desc:"< 3 seconds acceptable — background enrichment ok" },
+      { id:"async",     icon:"📬", label:"Async / background",       desc:"Minutes are fine — triggered by events or cron jobs" },
+      { id:"batch_lat", icon:"🌙", label:"Batch overnight",          desc:"Hours acceptable — bulk processing jobs" },
+    ]
+  },
+  {
+    id: "quality",
+    num: "04",
+    text: "How complex is the reasoning your feature requires?",
+    sub: "Simpler tasks can use smaller, cheaper models. Don't over-engineer.",
+    type: "single",
+    cols: 2,
+    options: [
+      { id:"simple",   icon:"🎯", label:"Simple & deterministic", desc:"Fixed-format extraction, yes/no, short answers" },
+      { id:"moderate", icon:"🧩", label:"Moderate reasoning",     desc:"Multi-step summarization, structured output, Q&A" },
+      { id:"complex",  icon:"🧠", label:"Complex reasoning",      desc:"Multi-hop analysis, code generation, nuanced judgment" },
+      { id:"frontier", icon:"🔬", label:"Frontier capability",    desc:"Research-grade, novel problems, maximum quality needed" },
+    ]
+  },
+  {
+    id: "data",
+    num: "05",
+    text: "What does your data look like?",
+    sub: "Helps determine whether prompt caching, RAG pipelines, or fine-tuning makes sense.",
+    type: "multi",
+    cols: 2,
+    options: [
+      { id:"short_ctx",  icon:"📄", label:"Short prompts",          desc:"< 1k tokens — questions, commands, quick tasks" },
+      { id:"long_ctx",   icon:"📖", label:"Long context",           desc:"> 8k tokens — full documents, long conversations" },
+      { id:"static_sys", icon:"📌", label:"Static system prompt",   desc:"Same system prompt across all calls — great for caching" },
+      { id:"user_docs",  icon:"📂", label:"User-uploaded documents",desc:"PDFs, Word docs, images ingested at runtime" },
+      { id:"structured", icon:"🗄️", label:"Structured data (SQL/JSON)", desc:"Database results, API responses passed as context" },
+      { id:"sensitive",  icon:"🔒", label:"Sensitive / regulated",  desc:"PII, healthcare, finance — data residency matters" },
+    ]
+  },
+  {
+    id: "lang",
+    num: "06",
+    text: "What SDK / language will you instrument?",
+    sub: "We'll include a ready-to-paste code snippet in your recommendation.",
+    type: "single",
+    cols: 2,
+    options: [
+      { id:"python",     icon:"🐍", label:"Python",      desc:"boto3 / anthropic SDK" },
+      { id:"typescript", icon:"🟦", label:"TypeScript",  desc:"@aws-sdk/client-bedrock-runtime" },
+      { id:"java",       icon:"☕", label:"Java",         desc:"AWS SDK for Java v2" },
+      { id:"dotnet",     icon:"🔷", label:".NET / C#",   desc:"AWSSDK.BedrockRuntime" },
+      { id:"go",         icon:"🐹", label:"Go",           desc:"github.com/aws/aws-sdk-go-v2" },
+      { id:"other",      icon:"🔧", label:"Other / CLI",  desc:"REST API or AWS CLI" },
+    ]
+  },
+  {
+    id: "volume",
+    num: "07",
+    text: "Estimate your monthly call volume and token usage",
+    sub: "Best-guess is fine — you can refine in the cost sandbox after.",
+    type: "inputs",
+    fields: [
+      { id:"monthly_calls", label:"Monthly calls",          default:30000, min:100,  max:5000000, step:1000, hint:"How many times the model is called per month" },
+      { id:"input_tokens",  label:"Avg input tokens / call", default:500,   min:50,   max:32000,   step:50,   hint:"Prompt + context per call. Typical: 200–2000" },
+      { id:"output_tokens", label:"Avg output tokens / call",default:300,   min:50,   max:4000,    step:50,   hint:"Expected response length. Typical: 100–500" },
+      { id:"cache_pct",     label:"Cache hit rate %",        default:0,     min:0,    max:100,     step:5,    hint:"% of calls where the system prompt is cached. 0 if unsure" },
+    ]
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// MODEL & ARCHITECTURE KNOWLEDGE BASE
+// ═══════════════════════════════════════════════════════════════════
+const MODELS = {
+  "claude-sonnet-4-5": { name:"Claude Sonnet 4.5",   in:0.003,  out:0.015,  cr:0.0003,  tier:"balanced",  color:"#3b4cff" },
+  "claude-haiku-3-5":  { name:"Claude Haiku 3.5",    in:0.0008, out:0.004,  cr:0.00008, tier:"fast",      color:"#30c68a" },
+  "claude-opus-3":     { name:"Claude Opus 3",        in:0.015,  out:0.075,  cr:0.0015,  color:"#9b59b6",  tier:"powerful" },
+  "claude-haiku-3":    { name:"Claude Haiku 3",       in:0.00025,out:0.00125,cr:0.000025,tier:"cheapest",  color:"#17a589" },
+  "meta.llama3-70b":   { name:"Llama 3 70B",          in:0.00099,out:0.00099,cr:0.00099, tier:"open",      color:"#e67e22" },
+  "meta.llama3-8b":    { name:"Llama 3 8B",           in:0.00022,out:0.00022,cr:0.00022, tier:"cheapest",  color:"#2ecc71" },
+  "mistral.large":     { name:"Mistral Large",        in:0.004,  out:0.012,  cr:0.004,   tier:"balanced",  color:"#e74c3c" },
+};
+
+function recommend(answers){
+  const uc      = answers.use_case   || "chatbot";
+  const scale   = answers.scale      || "small";
+  const latency = answers.latency    || "near";
+  const quality = answers.quality    || "moderate";
+  const data    = answers.data       || [];
+  const lang    = answers.lang       || "python";
+  const monthly = +(answers.monthly_calls || 30000);
+  const inTok   = +(answers.input_tokens  || 500);
+  const outTok  = +(answers.output_tokens || 300);
+  const cachePct= +(answers.cache_pct     || 0);
+
+  // ── Model selection logic ──
+  let modelId = "claude-sonnet-4-5";  // default
+
+  if(quality === "frontier" || uc === "agents"){
+    modelId = "claude-opus-3";
+  } else if(quality === "simple" || uc === "classify"){
+    modelId = scale === "massive" || scale === "large"
+      ? "claude-haiku-3"
+      : "claude-haiku-3-5";
+  } else if(uc === "batch" && latency === "batch_lat"){
+    modelId = scale === "massive" ? "meta.llama3-70b" : "claude-haiku-3-5";
+  } else if(uc === "codegen"){
+    modelId = quality === "complex" ? "claude-opus-3" : "claude-sonnet-4-5";
+  } else if(uc === "rag" || uc === "summarize"){
+    modelId = (quality === "simple" && (scale==="large"||scale==="massive"))
+      ? "claude-haiku-3-5"
+      : "claude-sonnet-4-5";
+  }
+
+  // Override for massive scale + simple → Haiku 3 (cheapest)
+  if(scale === "massive" && quality === "simple") modelId = "claude-haiku-3";
+
+  const m = MODELS[modelId];
+
+  // ── Cost calculation ──
+  const perCall  = calcCost(m, inTok, outTok, cachePct);
+  const monthly$ = perCall * monthly;
+  const annual$  = monthly$ * 12;
+
+  // ── Architecture pattern ──
+  const patterns = {
+    chatbot:  ["Setup Amazon Bedrock runtime client with streaming enabled","Maintain conversation history in a session store (DynamoDB / Redis)","Stream tokens via InvokeModelWithResponseStream for real-time feel","Instrument every call with the Bedrock Cost Wrapper for attribution"],
+    rag:      ["Store document chunks in a vector store (OpenSearch / pgvector)","Embed queries using Amazon Titan Embeddings","Retrieve top-K chunks → inject into context window","Call Bedrock Converse API with retrieved context + user query"],
+    summarize:["Use Bedrock Converse API with a structured system prompt","Chunk documents > 100k tokens before summarizing","Consider map-reduce: summarize chunks → synthesize final summary","Cache system prompt to reduce input cost on repeated calls"],
+    classify: ["Use InvokeModel with a simple prompt returning JSON","Add structured output constraints to keep responses deterministic","Consider few-shot examples in the system prompt for accuracy","Batch requests using async Lambda + SQS for high volume"],
+    codegen:  ["Use Bedrock Converse API with system prompt defining language/style","Stream responses for interactive editors","Add a validation layer to test generated code before returning","Cache common scaffolding prompts for consistent output"],
+    agents:   ["Use Amazon Bedrock Agents with tool definitions","Define Lambda functions as action group executors","Enable session management for multi-turn agent workflows","Monitor per-step token usage with the Agent interceptor"],
+    image:    ["Use Claude's vision capability via Converse API with image blocks","Encode images as base64 before sending","Add content moderation pre-check before processing user images","Cache OCR results to avoid re-processing the same document"],
+    batch:    ["Submit jobs to Bedrock Batch Inference API (up to 50% cheaper)","Use S3 as input/output store for batch jobs","Process results asynchronously via S3 event notifications","Schedule jobs during off-peak hours for best throughput"],
+  };
+
+  // ── Warning flags ──
+  const warnings = [];
+  if(scale === "massive" && !data.includes("static_sys"))
+    warnings.push("At your scale, enabling <strong>prompt caching</strong> could save 40–80% on input costs. Ensure your system prompt is static.");
+  if(data.includes("sensitive"))
+    warnings.push("<strong>Data residency:</strong> For regulated data, deploy in a single AWS region and enable VPC endpoints for Bedrock. Never log prompt content.");
+  if(uc === "agents" && scale === "large")
+    warnings.push("<strong>Agent costs compound:</strong> Each agent step calls the model. A 5-step agent at your volume = 5× your estimated cost. Monitor per-step token usage.");
+  if(monthly > 1000000 && modelId !== "claude-haiku-3" && modelId !== "meta.llama3-8b")
+    warnings.push(`<strong>Consider Reserved Throughput:</strong> At ${fmtN(monthly)} calls/month, provisioned throughput may be cheaper than on-demand pricing.`);
+  if(cachePct === 0 && data.includes("static_sys"))
+    warnings.push("You said your system prompt is static but cache hit rate is 0%. <strong>Enable prompt caching</strong> — it will cut your input cost by ~90% per cached token.");
+
+  // ── Code snippet ──
+  const snippets = {
+    python: `<span class="kw">from</span> bedrock_cost_wrapper <span class="kw">import</span> BedrockCostWrapper
+
+wrapper = BedrockCostWrapper(
+    ingest_api_url=<span class="str">"https://17u3qrm9a4.execute-api.eu-central-1.amazonaws.com/v1/events"</span>,
+    api_key=os.environ[<span class="str">"BEDROCK_COST_API_KEY"</span>],
+    application_id=<span class="str">"your-feature-name"</span>,
+)
+
+bedrock = wrapper.client(region_name=<span class="str">"eu-central-1"</span>)
+
+response = bedrock.converse(
+    modelId=<span class="str">"${modelId}"</span>,
+    messages=[{<span class="str">"role"</span>: <span class="str">"user"</span>, <span class="str">"content"</span>: [{<span class="str">"text"</span>: user_input}]}],
+    _user_id=current_user_id,
+    _application_id=<span class="str">"your-feature-name"</span>,
+)`,
+    typescript: `<span class="kw">import</span> { BedrockCostWrapper } <span class="kw">from</span> <span class="str">"./bedrock-cost-wrapper"</span>;
+
+<span class="kw">const</span> wrapper = <span class="kw">new</span> BedrockCostWrapper({
+    ingestApiUrl: <span class="str">"https://17u3qrm9a4.execute-api.eu-central-1.amazonaws.com/v1/events"</span>,
+    apiKey: process.env.BEDROCK_COST_API_KEY!,
+    applicationId: <span class="str">"your-feature-name"</span>,
+});
+
+<span class="kw">const</span> bedrock = wrapper.client({ region: <span class="str">"eu-central-1"</span> });
+
+<span class="kw">const</span> response = <span class="kw">await</span> bedrock.converse({
+    modelId: <span class="str">"${modelId}"</span>,
+    messages: [{ role: <span class="str">"user"</span>, content: [{ text: userInput }] }],
+    _userId: currentUserId,
+});`,
+    java: `<span class="cmt">// Add to pom.xml: software.amazon.awssdk:bedrockruntime</span>
+BedrockRuntimeClient client = BedrockRuntimeClient.builder()
+    .region(Region.EU_CENTRAL_1)
+    .build();
+
+ConverseRequest request = ConverseRequest.builder()
+    .modelId(<span class="str">"${modelId}"</span>)
+    .messages(Message.builder()
+        .role(ConversationRole.USER)
+        .content(ContentBlock.fromText(userInput))
+        .build())
+    .build();
+
+ConverseResponse response = client.converse(request);`,
+    dotnet: `<span class="cmt">// dotnet add package AWSSDK.BedrockRuntime</span>
+<span class="kw">var</span> client = <span class="kw">new</span> AmazonBedrockRuntimeClient(
+    RegionEndpoint.EUCentral1
+);
+
+<span class="kw">var</span> request = <span class="kw">new</span> ConverseRequest {
+    ModelId = <span class="str">"${modelId}"</span>,
+    Messages = <span class="kw">new</span> List&lt;Message&gt; {
+        <span class="kw">new</span> Message {
+            Role = ConversationRole.User,
+            Content = <span class="kw">new</span> List&lt;ContentBlock&gt; {
+                <span class="kw">new</span> ContentBlock { Text = userInput }
+            }
+        }
+    }
+};`,
+    go: `<span class="cmt">// go get github.com/aws/aws-sdk-go-v2/service/bedrockruntime</span>
+cfg, _ := config.LoadDefaultConfig(context.TODO(),
+    config.WithRegion(<span class="str">"eu-central-1"</span>),
+)
+client := bedrockruntime.NewFromConfig(cfg)
+
+output, err := client.Converse(context.TODO(),
+    &bedrockruntime.ConverseInput{
+        ModelId: aws.String(<span class="str">"${modelId}"</span>),
+        Messages: []types.Message{{
+            Role: types.ConversationRoleUser,
+            Content: []types.ContentBlock{
+                &types.ContentBlockMemberText{Value: userInput},
+            },
+        }},
+    },
+)`,
+    other: `<span class="cmt"># AWS CLI example</span>
+aws bedrock-runtime converse \\
+  --model-id <span class="str">"${modelId}"</span> \\
+  --region eu-central-1 \\
+  --messages '[{"role":"user","content":[{"text":"Your prompt here"}]}]'`,
+  };
+
+  return {
+    modelId, m, perCall, monthly$, annual$, monthly, inTok, outTok, cachePct,
+    pattern: patterns[uc] || patterns.chatbot,
+    warnings,
+    snippet: snippets[lang] || snippets.other,
+    uc, scale, latency, quality, data, lang,
+  };
+}
+
+function calcCost(m, inTok, outTok, cachePct){
+  const cr = cachePct/100, fresh = 1-cr;
+  return (inTok*fresh/1000)*m.in + (inTok*cr/1000)*m.cr + (outTok/1000)*m.out;
+}
+
+function fmtN(n){ return n>=1e6?`${(n/1e6).toFixed(1)}M`:n>=1e3?`${(n/1e3).toFixed(0)}k`:String(n); }
+function fmt$(n){ return n>=1e6?`$${(n/1e6).toFixed(2)}M`:n>=1000?`$${(n/1000).toFixed(1)}k`:n>=1?`$${n.toFixed(2)}`:`$${n.toFixed(4)}`; }
+
+// ═══════════════════════════════════════════════════════════════════
+// QUESTIONNAIRE ENGINE
+// ═══════════════════════════════════════════════════════════════════
+let step     = 0;
+let answers  = {};
+let multiSel = {};   // for multi-select questions
+
+function render(){
+  const q = QUESTIONS[step];
+  if(!q){ showResults(); return; }
+
+  // Progress
+  const pct = Math.round(((step+1)/QUESTIONS.length)*100);
+  document.getElementById("progress-wrap").style.display="block";
+  document.getElementById("results").style.display="none";
+  document.getElementById("q-card").style.display="block";
+  document.getElementById("progress-label").textContent = q.text;
+  document.getElementById("progress-step").textContent  = `Step ${step+1} of ${QUESTIONS.length}`;
+  document.getElementById("progress-fill").style.width  = pct+"%";
+
+  let bodyHtml = "";
+
+  if(q.type === "single" || q.type === "multi"){
+    if(q.type === "multi")
+      bodyHtml += `<div class="multi-hint">☑ Select all that apply</div>`;
+
+    bodyHtml += `<div class="options-grid${q.cols===2?" cols2":""}">`;
+    q.options.forEach(o => {
+      const isSel = q.type === "multi"
+        ? !!(multiSel[q.id]||{})[o.id]
+        : answers[q.id] === o.id;
+      const cls = `opt${q.type==="multi"?" multi":""}${isSel?" sel":""}`;
+      bodyHtml += `
+        <div class="${cls}" onclick="selectOpt('${q.id}','${o.id}','${q.type}')">
+          <div class="opt-icon">${o.icon}</div>
+          <div class="opt-content">
+            <div class="opt-label">${o.label}</div>
+            <div class="opt-desc">${o.desc}</div>
+          </div>
+          <div class="opt-check">${isSel?"✓":""}</div>
+        </div>`;
+    });
+    bodyHtml += "</div>";
+
+  } else if(q.type === "inputs"){
+    q.fields.forEach(f => {
+      const val = answers[f.id] !== undefined ? answers[f.id] : f.default;
+      bodyHtml += `
+        <div class="num-field">
+          <label>${f.label}</label>
+          <input type="number" id="inp-${f.id}" value="${val}" min="${f.min}" max="${f.max}" step="${f.step}"
+            oninput="answers['${f.id}']=+this.value"/>
+          <div class="num-hint">${f.hint}</div>
+        </div>`;
+    });
+  }
+
+  const isFirst = step === 0;
+  const isLast  = step === QUESTIONS.length - 1;
+  const canNext = q.type==="inputs" || q.type==="multi"
+    ? true
+    : !!answers[q.id];
+
+  document.getElementById("q-card").innerHTML = `
+    <div class="q-header">
+      <div class="q-num">Question ${q.num}</div>
+      <div class="q-text">${q.text}</div>
+      <div class="q-sub">${q.sub}</div>
+    </div>
+    <div class="q-body">${bodyHtml}</div>
+    <div class="q-nav">
+      <button class="btn-prev" onclick="prevStep()" style="${isFirst?"visibility:hidden":""}">← Back</button>
+      <button class="btn-next" onclick="nextStep()" ${canNext?"":'disabled id="btn-next"'}>
+        ${isLast ? "Get my recommendation →" : "Next →"}
+      </button>
+    </div>`;
+}
+
+function selectOpt(qId, optId, type){
+  if(type === "multi"){
+    if(!multiSel[qId]) multiSel[qId] = {};
+    multiSel[qId][optId] = !multiSel[qId][optId];
+    answers[qId] = Object.keys(multiSel[qId]).filter(k=>multiSel[qId][k]);
+  } else {
+    answers[qId] = optId;
+  }
+  render();
+}
+
+function nextStep(){
+  const q = QUESTIONS[step];
+  // Collect numeric inputs before advancing
+  if(q.type === "inputs"){
+    q.fields.forEach(f => {
+      const el = document.getElementById("inp-"+f.id);
+      if(el) answers[f.id] = +el.value || f.default;
+    });
+  }
+  step++;
+  render();
+}
+
+function prevStep(){ if(step>0){ step--; render(); } }
+
+// ═══════════════════════════════════════════════════════════════════
+// RESULTS PAGE
+// ═══════════════════════════════════════════════════════════════════
+function showResults(){
+  document.getElementById("progress-wrap").style.display="none";
+  document.getElementById("q-card").style.display="none";
+
+  const r = recommend(answers);
+
+  // Cost breakdown for top 3 alternatives
+  const altModels = Object.entries(MODELS)
+    .map(([id,m])=>({ id, m, monthly$: calcCost(m,r.inTok,r.outTok,r.cachePct)*r.monthly }))
+    .sort((a,b)=>a.monthly$-b.monthly$)
+    .slice(0,3);
+
+  const warningsHtml = r.warnings.length
+    ? r.warnings.map(w=>`<div class="warn-box">⚠ ${w}</div>`).join("")
+    : "";
+
+  const archHtml = r.pattern.map((s,i)=>`
+    <div class="arch-step">
+      <div class="arch-num">${i+1}</div>
+      <div class="arch-text">${s}</div>
+    </div>`).join("");
+
+  const altHtml = altModels.map(a=>`
+    <div class="alt-card${a.id===r.modelId?" rec":""}">
+      ${a.id===r.modelId?'<div style="font-size:9px;font-weight:700;color:var(--primary);margin-bottom:4px;letter-spacing:.06em">★ RECOMMENDED</div>':""}
+      <div class="alt-name">${a.m.name}</div>
+      <div class="alt-cost" style="color:${a.m.color}">${fmt$(a.monthly$)}</div>
+      <div class="alt-note">/month · ${a.m.tier}</div>
+    </div>`).join("");
+
+  const scaleLabel = {proto:"Prototype",small:"Small",medium:"Medium",large:"High-volume",massive:"Enterprise"}[answers.scale]||"";
+  const ucLabel    = {chatbot:"Chatbot",rag:"RAG",summarize:"Summarization",classify:"Classification",codegen:"Code gen",agents:"Agents",image:"Multimodal",batch:"Batch"}[answers.use_case]||"";
+
+  document.getElementById("results").innerHTML = `
+    <div class="result-hero">
+      <div class="result-badge">✦ AI Architecture Recommendation</div>
+      <div class="result-model">${r.m.name}</div>
+      <div class="result-reason">Best fit for your <strong>${ucLabel}</strong> use case at <strong>${scaleLabel}</strong> scale — balancing cost, quality, and latency for your workload profile.</div>
+      <div class="result-chips">
+        <span class="chip blue">${r.m.tier}</span>
+        <span class="chip green">$${r.m.in}/1k input</span>
+        <span class="chip green">$${r.m.out}/1k output</span>
+        ${r.cachePct>0?`<span class="chip amber">${r.cachePct}% cache hit</span>`:""}
+      </div>
+      <div class="cost-preview">
+        <div class="cost-preview-v">${fmt$(r.monthly$)}</div>
+        <div class="cost-preview-l">/month · ${fmtN(r.monthly)} calls · ${fmt$(r.annual$)}/year</div>
+      </div>
+      <div class="result-actions">
+        <button class="btn-primary" onclick="openSandbox()">Open in Cost Sandbox →</button>
+        <button class="btn-outline" onclick="restart()">Start over</button>
+      </div>
+    </div>
+
+    ${warningsHtml}
+
+    <div class="res-grid">
+      <div class="res-card">
+        <div class="res-card-t">Recommended architecture</div>
+        ${archHtml}
+      </div>
+      <div class="res-card">
+        <div class="res-card-t">Cost comparison — top 3 models</div>
+        <div class="model-alt-grid" style="grid-template-columns:1fr;gap:8px">${altHtml}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">
+          Prices are on-demand AWS Bedrock rates. Reserved throughput may reduce costs further at your scale.
+        </div>
+      </div>
+    </div>
+
+    <div class="res-card" style="margin-bottom:14px">
+      <div class="res-card-t">SDK setup — ${answers.lang||"python"}</div>
+      <div class="code-block">${r.snippet}</div>
+      <div style="font-size:11px;color:var(--text3)">
+        This uses the Bedrock Cost Wrapper for automatic cost attribution. Every call is tracked per user, agent, and application.
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:8px 0 4px">
+      <div class="restart-link" onclick="restart()">← Restart questionnaire</div>
+    </div>`;
+
+  document.getElementById("results").style.display="block";
+  window.scrollTo({top:0,behavior:"smooth"});
+
+  // Store recommendation for sandbox handoff
+  window._advisorRec = r;
+}
+
+function openSandbox(){
+  const r = window._advisorRec;
+  if(!r) return;
+  const params = new URLSearchParams({
+    model: r.modelId,
+    monthly: r.monthly,
+    inTok: r.inTok,
+    outTok: r.outTok,
+    cache: r.cachePct,
+  });
+  window.location.href = "index.html#sandbox?" + params.toString();
+}
+
+function restart(){
+  step=0; answers={}; multiSel={};
+  render();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+// Boot
+render();
+</script>
+</body>
+</html>
