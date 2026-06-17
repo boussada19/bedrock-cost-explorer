@@ -246,7 +246,7 @@ export class BedrockCostExplorerStack extends cdk.Stack {
 
     const apiKey = api.addApiKey("SdkWrapperApiKey", {
       apiKeyName:  "bedrock-sdk-wrapper",
-      description: "Used by instrumentation SDK wrappers",
+      description: "Used by instrumentation SDK wrappers — v2",
     });
     const usagePlan = api.addUsagePlan("DefaultUsagePlan", {
       name:     "default",
