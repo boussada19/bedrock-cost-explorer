@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bedrock Cost Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #fafaf9;
+        --bg2: #f5f4f1;
+        --bg3: #eeecea;
+        --border: rgba(0, 0, 0, 0.1);
+        --border2: rgba(0, 0, 0, 0.18);
+        --text: #1a1a18;
+        --text2: #6b6b66;
+        --text3: #a0a09a;
+        --mono: "SF Mono", "Fira Code", "Consolas", monospace;
+        --green: #1a7a4a;
+        --amber: #b35e00;
+        --red: #c0392b;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111110;
+          --bg2: #1a1917;
+          --bg3: #232220;
+          --border: rgba(255, 255, 255, 0.1);
+          --border2: rgba(255, 255, 255, 0.18);
+          --text: #eeecea;
+          --text2: #8c8c86;
+          --text3: #5a5a54;
+          --green: #34d399;
+          --amber: #f59e0b;
+          --red: #f87171;
+        }
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      #root {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.2;
+        }
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      const { useState, useEffect, useCallback, useRef } = React;
+      const {
+        LineChart,
+        Line,
+        BarChart,
+        Bar,
+        XAxis,
+        YAxis,
+        CartesianGrid,
+        Tooltip,
+        ResponsiveContainer,
+        Legend,
+      } = Recharts;
+
+      const API =
+        "https://17u3qrm9a4.execute-api.eu-central-1.amazonaws.com/v1/query";
+      const KEY = "bUXRE6VDKAa3fjqY1GEShhF2AFhxgZ62AktmYh05";
+
+      const s = {
+        topbar: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingBottom: 20,
+          borderBottom: "0.5px solid var(--border)",
+          marginBottom: 20,
+        },
+        logoZone: { display: "flex", alignItems: "center", gap: 12 },
+        logoBox: {
+          width: 36,
+          height: 36,
+          border: "0.5px solid var(--border2)",
+          borderRadius: 6,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--text3)",
+          fontSize: 9,
+          letterSpacing: ".08em",
+          textTransform: "uppercase",
+        },
+        prodName: {
+          fontSize: 15,
+          fontWeight: 500,
+          color: "var(--text)",
+          letterSpacing: "-.2px",
+        },
+        prodSub: { fontSize: 11, color: "var(--text3)", marginTop: 1 },
+        liveBadge: {
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          fontSize: 11,
+          color: "var(--green)",
+          letterSpacing: ".04em",
+        },
+        liveDot: {
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: "var(--green)",
+          animation: "pulse 2s infinite",
+        },
+        ts: { fontSize: 11, color: "var(--text3)", fontFamily: "var(--mono)" },
+        ctrlBar: {
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          marginBottom: 20,
+        },
+        sep: {
+          width: "0.5px",
+          height: 14,
+          background: "var(--border)",
+          margin: "0 4px",
+        },
+        pill: (on) => ({
+          padding: "3px 10px",
+          borderRadius: 3,
+          fontSize: 11,
+          letterSpacing: ".04em",
+          cursor: "pointer",
+          border: on
+            ? "0.5px solid var(--border2)"
+            : "0.5px solid var(--border)",
+          color: on ? "var(--text)" : "var(--text3)",
+          background: on ? "var(--bg2)" : "transparent",
+          fontWeight: on ? 500 : 400,
+        }),
+        kpiGrid: {
+          display: "grid",
+          gridTemplateColumns: "repeat(5,minmax(0,1fr))",
+          gap: 1,
+          border: "0.5px solid var(--border)",
+          borderRadius: 12,
+          overflow: "hidden",
+          marginBottom: 20,
+          background: "var(--border)",
+        },
+        kpi: { background: "var(--bg)", padding: "16px 18px" },
+        kpiL: {
+          fontSize: 10,
+          color: "var(--text3)",
+          textTransform: "uppercase",
+          letterSpacing: ".08em",
+          marginBottom: 8,
+        },
+        kpiV: {
+          fontSize: 20,
+          fontWeight: 500,
+          color: "var(--text)",
+          fontFamily: "var(--mono)",
+          letterSpacing: "-.5px",
+        },
+        kpiS: {
+          fontSize: 11,
+          color: "var(--text3)",
+          marginTop: 4,
+          fontFamily: "var(--mono)",
+        },
+        section: {
+          border: "0.5px solid var(--border)",
+          borderRadius: 12,
+          marginBottom: 14,
+          overflow: "hidden",
+        },
+        secHead: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "11px 16px",
+          borderBottom: "0.5px solid var(--border)",
+          background: "var(--bg2)",
+        },
+        secTitle: {
+          fontSize: 10,
+          textTransform: "uppercase",
+          letterSpacing: ".08em",
+          color: "var(--text2)",
+          fontWeight: 500,
+        },
+        secBody: { padding: "16px" },
+        twoCol: {
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 14,
+          marginBottom: 14,
+        },
+        footer: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingTop: 14,
+          borderTop: "0.5px solid var(--border)",
+          marginTop: 4,
+        },
+        footNote: {
+          fontSize: 11,
+          color: "var(--text3)",
+          fontFamily: "var(--mono)",
+        },
+        spinner: {
+          display: "inline-block",
+          width: 13,
+          height: 13,
+          border: "1.5px solid var(--border2)",
+          borderTop: "1.5px solid var(--text2)",
+          borderRadius: "50%",
+          animation: "spin .7s linear infinite",
+        },
+      };
+
+      const fmt$ = (n) =>
+        n == null
+          ? "—"
+          : +n >= 1
+            ? `$${(+n).toFixed(4)}`
+            : `$${(+n).toFixed(6)}`;
+      const fmtK = (n) =>
+        n == null
+          ? "—"
+          : +n >= 1e6
+            ? `${(+n / 1e6).toFixed(2)}M`
+            : +n >= 1e3
+              ? `${(+n / 1e3).toFixed(1)}k`
+              : String(n);
+      const fmtP = (n) => (n == null ? "—" : `${(+n).toFixed(1)}%`);
+      const mono = (s) => ({ fontFamily: "var(--mono)", ...s });
+
+      async function qfetch(path, params = {}) {
+        const u = new URL(`${API}/${path}`);
+        Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+        const r = await fetch(u, { headers: { "X-Api-Key": KEY } });
+        if (!r.ok) throw new Error(r.status);
+        return r.json();
+      }
+      function tw(h) {
+        const e = new Date(),
+          s = new Date(Date.now() - h * 3600000);
+        return { start: s.toISOString(), end: e.toISOString() };
+      }
+
+      const TOOLTIP_STYLE = {
+        background: "var(--bg2)",
+        border: "0.5px solid var(--border2)",
+        borderRadius: 6,
+        fontSize: 11,
+        color: "var(--text)",
+        fontFamily: "var(--mono)",
+      };
+
+      function App() {
+        const [wh, setWh] = useState(24);
+        const [gran, setGran] = useState("hour");
+        const [tab, setTab] = useState("model");
+        const [sum, setSum] = useState(null);
+        const [ts, setTs] = useState(null);
+        const [bd, setBd] = useState(null);
+        const [recon, setRecon] = useState(null);
+        const [cov, setCov] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [loadBd, setLoadBd] = useState(true);
+        const [err, setErr] = useState(null);
+        const [lastRef, setLastRef] = useState(null);
+        const timer = useRef(null);
+
+        const DIMS = {
+          agent: { path: "by-agent", key: "agent_id", label: "Agent" },
+          user: { path: "by-user", key: "user_id", label: "User" },
+          app: { path: "by-app", key: "application_id", label: "Application" },
+          model: { path: "by-model", key: "model_id", label: "Model" },
+        };
+
+        const loadMain = useCallback(async () => {
+          const { start, end } = tw(wh);
+          setLoading(true);
+          try {
+            const [s, t, r, c] = await Promise.all([
+              qfetch("summary", { start, end }),
+              qfetch("timeseries", { start, end, granularity: gran }),
+              qfetch("reconciliation", { limit: "10" }),
+              qfetch("coverage"),
+            ]);
+            setSum(s);
+            setTs(t);
+            setRecon(r);
+            setCov(c);
+            setErr(null);
+            setLastRef(new Date().toISOString().slice(11, 16) + " UTC");
+          } catch (e) {
+            setErr(String(e));
+          } finally {
+            setLoading(false);
+          }
+        }, [wh, gran]);
+
+        const loadBD = useCallback(async () => {
+          const { start, end } = tw(wh);
+          setLoadBd(true);
+          try {
+            const b = await qfetch(DIMS[tab].path, { start, end });
+            setBd(b);
+          } catch (e) {
+          } finally {
+            setLoadBd(false);
+          }
+        }, [wh, tab]);
+
+        useEffect(() => {
+          loadMain();
+          clearInterval(timer.current);
+          timer.current = setInterval(loadMain, 60000);
+          return () => clearInterval(timer.current);
+        }, [loadMain]);
+        useEffect(() => {
+          loadBD();
+        }, [loadBD]);
+
+        const cPct = cov?.coverage_pct ?? 100;
+        const cColor =
+          cPct >= 95
+            ? "var(--green)"
+            : cPct >= 80
+              ? "var(--amber)"
+              : "var(--red)";
+        const series = ts?.series || [];
+        const shortTs = (v) => {
+          if (!v) return "";
+          return gran === "day"
+            ? v.slice(0, 10)
+            : (v.split("T")[1] || "").slice(0, 5);
+        };
+        const maxBD = Math.max(
+          ...(bd?.items || []).map((r) => r.total_cost_usd || 0),
+          0.000001,
+        );
+
+        return (
+          <div>
+            <div style={s.topbar}>
+              <div style={s.logoZone}>
+                <div style={s.logoBox}>LOGO</div>
+                <div>
+                  <div style={s.prodName}>Bedrock cost explorer</div>
+                  <div style={s.prodSub}>AWS · eu-central-1 · internal</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={s.liveBadge}>
+                  <span style={s.liveDot} />
+                  LIVE
+                </div>
+                {lastRef && <span style={s.ts}>{lastRef}</span>}
+                {loading && <span style={s.spinner} />}
+                <button
+                  style={s.pill(false)}
+                  onClick={() => {
+                    loadMain();
+                    loadBD();
+                  }}
+                >
+                  ↻ Refresh
+                </button>
+              </div>
+            </div>
+
+            {err && (
+              <div
+                style={{
+                  padding: "9px 14px",
+                  marginBottom: 16,
+                  borderRadius: 8,
+                  border: "0.5px solid var(--red)",
+                  color: "var(--red)",
+                  fontSize: 12,
+                  fontFamily: "var(--mono)",
+                }}
+              >
+                {err}
+              </div>
+            )}
+
+            <div style={s.ctrlBar}>
+              {[
+                { l: "1h", h: 1 },
+                { l: "6h", h: 6 },
+                { l: "24h", h: 24 },
+                { l: "7d", h: 168 },
+                { l: "30d", h: 720 },
+              ].map((w) => (
+                <button
+                  key={w.h}
+                  style={s.pill(wh === w.h)}
+                  onClick={() => setWh(w.h)}
+                >
+                  {w.l}
+                </button>
+              ))}
+              <div style={s.sep} />
+              {[
+                ["hour", "Hourly"],
+                ["day", "Daily"],
+              ].map(([v, l]) => (
+                <button
+                  key={v}
+                  style={s.pill(gran === v)}
+                  onClick={() => setGran(v)}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            <div style={s.kpiGrid}>
+              {[
+                {
+                  l: "Total cost",
+                  v: loading ? "—" : fmt$(sum?.total_cost_usd),
+                  sub: `${(sum?.total_events || 0).toLocaleString()} calls`,
+                },
+                {
+                  l: "Input tokens",
+                  v: loading ? "—" : fmtK(sum?.total_input_tokens),
+                  sub: `${sum?.total_events ? Math.round(sum.total_input_tokens / sum.total_events) : 0} / call avg`,
+                },
+                {
+                  l: "Output tokens",
+                  v: loading ? "—" : fmtK(sum?.total_output_tokens),
+                  sub: `${sum?.total_events ? Math.round(sum.total_output_tokens / sum.total_events) : 0} / call avg`,
+                },
+                {
+                  l: "Error rate",
+                  v: loading
+                    ? "—"
+                    : fmtP(
+                        sum?.total_events
+                          ? (sum.error_count / sum.total_events) * 100
+                          : 0,
+                      ),
+                  sub: `${sum?.error_count || 0} errors`,
+                },
+                {
+                  l: "Coverage",
+                  v: loading ? (
+                    "—"
+                  ) : (
+                    <span style={{ color: cColor }}>{fmtP(cPct)}</span>
+                  ),
+                  sub: "last 7 days",
+                },
+              ].map((k, i) => (
+                <div key={i} style={s.kpi}>
+                  <div style={s.kpiL}>{k.l}</div>
+                  <div style={s.kpiV}>{k.v}</div>
+                  <div style={s.kpiS}>{k.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={s.section}>
+              <div style={s.secHead}>
+                <span style={s.secTitle}>Cost over time</span>
+                <span style={s.ts}>
+                  {wh}h window · {gran} buckets
+                </span>
+              </div>
+              <div style={s.secBody}>
+                {loading ? (
+                  <div
+                    style={{
+                      height: 140,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <span style={s.spinner} />
+                  </div>
+                ) : series.length ? (
+                  <ResponsiveContainer width="100%" height={140}>
+                    <LineChart
+                      data={series}
+                      margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="2 3"
+                        stroke="var(--border)"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="period"
+                        tickFormatter={shortTs}
+                        tick={{
+                          fontSize: 10,
+                          fill: "var(--text3)",
+                          fontFamily: "var(--mono)",
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        tick={{
+                          fontSize: 10,
+                          fill: "var(--text3)",
+                          fontFamily: "var(--mono)",
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `$${(+v).toFixed(4)}`}
+                      />
+                      <Tooltip
+                        formatter={(v) => [fmt$(v), "cost"]}
+                        labelFormatter={shortTs}
+                        contentStyle={TOOLTIP_STYLE}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="total_cost_usd"
+                        stroke="var(--text2)"
+                        strokeWidth={1}
+                        dot={false}
+                        activeDot={{ r: 2, fill: "var(--text)" }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: 140,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--text3)",
+                      fontSize: 12,
+                    }}
+                  >
+                    No data for this window.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={s.section}>
+              <div style={s.secHead}>
+                <span style={s.secTitle}>Token consumption</span>
+                <span style={s.ts}>input / output split</span>
+              </div>
+              <div style={s.secBody}>
+                {loading ? (
+                  <div
+                    style={{
+                      height: 120,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <span style={s.spinner} />
+                  </div>
+                ) : series.length ? (
+                  <ResponsiveContainer width="100%" height={120}>
+                    <BarChart
+                      data={series}
+                      margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="2 3"
+                        stroke="var(--border)"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="period"
+                        tickFormatter={shortTs}
+                        tick={{
+                          fontSize: 10,
+                          fill: "var(--text3)",
+                          fontFamily: "var(--mono)",
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        tick={{
+                          fontSize: 10,
+                          fill: "var(--text3)",
+                          fontFamily: "var(--mono)",
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={fmtK}
+                      />
+                      <Tooltip
+                        formatter={(v, n) => [
+                          fmtK(v),
+                          n === "input_tokens" ? "input" : "output",
+                        ]}
+                        labelFormatter={shortTs}
+                        contentStyle={TOOLTIP_STYLE}
+                      />
+                      <Bar
+                        dataKey="input_tokens"
+                        name="input_tokens"
+                        stackId="a"
+                        fill="var(--text2)"
+                        radius={[0, 0, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="output_tokens"
+                        name="output_tokens"
+                        stackId="a"
+                        fill="var(--text3)"
+                        radius={[1, 1, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: 120,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--text3)",
+                      fontSize: 12,
+                    }}
+                  >
+                    No data yet.
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
+                  {[
+                    ["var(--text2)", "Input tokens"],
+                    ["var(--text3)", "Output tokens"],
+                  ].map(([c, l]) => (
+                    <div
+                      key={l}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 11,
+                        color: "var(--text3)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 10,
+                          height: 2,
+                          background: c,
+                          borderRadius: 1,
+                        }}
+                      />
+                      {l}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={s.section}>
+              <div style={s.secHead}>
+                <span style={s.secTitle}>Cost breakdown</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {Object.keys(DIMS).map((t) => (
+                    <button
+                      key={t}
+                      style={s.pill(tab === t)}
+                      onClick={() => setTab(t)}
+                    >
+                      {DIMS[t].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={s.secBody}>
+                {loadBd ? (
+                  <div style={{ padding: "16px 0", textAlign: "center" }}>
+                    <span style={s.spinner} />
+                  </div>
+                ) : (bd?.items || []).length ? (
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      fontSize: 12,
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ borderBottom: "0.5px solid var(--border)" }}>
+                        {[
+                          DIMS[tab].label,
+                          "Cost",
+                          "Input",
+                          "Output",
+                          "Calls",
+                          "",
+                        ].map((h, i) => (
+                          <th
+                            key={i}
+                            style={{
+                              textAlign: i === 0 ? "left" : "right",
+                              padding: "0 0 8px",
+                              fontSize: 10,
+                              textTransform: "uppercase",
+                              letterSpacing: ".07em",
+                              color: "var(--text3)",
+                              fontWeight: 400,
+                              paddingRight: i === 5 ? 0 : 8,
+                            }}
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(bd?.items || []).map((row, i) => (
+                        <tr
+                          key={i}
+                          style={{ borderBottom: "0.5px solid var(--border)" }}
+                        >
+                          <td
+                            style={{
+                              padding: "7px 8px 7px 0",
+                              color: "var(--text)",
+                              maxWidth: 180,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {row[DIMS[tab].key] || "(unattributed)"}
+                          </td>
+                          <td
+                            style={{
+                              padding: "7px 8px",
+                              textAlign: "right",
+                              ...mono({}),
+                            }}
+                          >
+                            {fmt$(row.total_cost_usd)}
+                          </td>
+                          <td
+                            style={{
+                              padding: "7px 8px",
+                              textAlign: "right",
+                              ...mono({ color: "var(--text2)" }),
+                            }}
+                          >
+                            {fmtK(row.input_tokens)}
+                          </td>
+                          <td
+                            style={{
+                              padding: "7px 8px",
+                              textAlign: "right",
+                              ...mono({ color: "var(--text2)" }),
+                            }}
+                          >
+                            {fmtK(row.output_tokens)}
+                          </td>
+                          <td
+                            style={{
+                              padding: "7px 8px",
+                              textAlign: "right",
+                              ...mono({ color: "var(--text2)" }),
+                            }}
+                          >
+                            {(row.event_count || 0).toLocaleString()}
+                          </td>
+                          <td style={{ padding: "7px 0", width: 72 }}>
+                            <div
+                              style={{
+                                height: 2,
+                                background: "var(--border2)",
+                                borderRadius: 1,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  height: "100%",
+                                  width: `${((row.total_cost_usd || 0) / maxBD) * 100}%`,
+                                  background: "var(--text2)",
+                                  borderRadius: 1,
+                                }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text3)",
+                      padding: "8px 0",
+                    }}
+                  >
+                    No data for this window.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={s.twoCol}>
+              <div style={{ ...s.section, margin: 0 }}>
+                <div style={s.secHead}>
+                  <span style={s.secTitle}>Reconciliation</span>
+                  <span style={s.ts}>vs AWS CUR · daily</span>
+                </div>
+                <div style={s.secBody}>
+                  {!recon ? (
+                    <span style={s.spinner} />
+                  ) : recon.runs?.length ? (
+                    <table
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        fontSize: 12,
+                      }}
+                    >
+                      <thead>
+                        <tr
+                          style={{ borderBottom: "0.5px solid var(--border)" }}
+                        >
+                          {["Date", "Computed", "Billed", "Variance"].map(
+                            (h, i) => (
+                              <th
+                                key={h}
+                                style={{
+                                  textAlign: i === 0 ? "left" : "right",
+                                  padding: "0 0 7px",
+                                  fontSize: 10,
+                                  textTransform: "uppercase",
+                                  letterSpacing: ".07em",
+                                  color: "var(--text3)",
+                                  fontWeight: 400,
+                                }}
+                              >
+                                {h}
+                              </th>
+                            ),
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recon.runs.map((r, i) => {
+                          const vp = parseFloat(r.variance_pct || 0);
+                          const vc =
+                            Math.abs(vp) < 5
+                              ? "var(--text2)"
+                              : Math.abs(vp) < 10
+                                ? "var(--amber)"
+                                : "var(--red)";
+                          return (
+                            <tr
+                              key={i}
+                              style={{
+                                borderBottom: "0.5px solid var(--border)",
+                              }}
+                            >
+                              <td
+                                style={{
+                                  padding: "6px 0",
+                                  fontFamily: "var(--mono)",
+                                  fontSize: 11,
+                                }}
+                              >
+                                {r.run_date}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "6px 0",
+                                  textAlign: "right",
+                                  fontFamily: "var(--mono)",
+                                  fontSize: 11,
+                                  color: "var(--text2)",
+                                }}
+                              >
+                                {fmt$(parseFloat(r.computed_cost_usd || 0))}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "6px 0",
+                                  textAlign: "right",
+                                  fontFamily: "var(--mono)",
+                                  fontSize: 11,
+                                  color: "var(--text2)",
+                                }}
+                              >
+                                {r.cur_available
+                                  ? fmt$(parseFloat(r.billed_cost_usd || 0))
+                                  : "—"}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "6px 0",
+                                  textAlign: "right",
+                                  fontFamily: "var(--mono)",
+                                  fontSize: 11,
+                                  color: vc,
+                                }}
+                              >
+                                {r.cur_available
+                                  ? `${vp > 0 ? "+" : ""}${vp.toFixed(1)}%`
+                                  : "pending"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text3)",
+                          marginBottom: 12,
+                        }}
+                      >
+                        No runs yet — first run at 06:00 UTC tomorrow.
+                      </div>
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          border: "0.5px solid var(--border)",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            textTransform: "uppercase",
+                            letterSpacing: ".07em",
+                            color: "var(--text3)",
+                            marginBottom: 5,
+                          }}
+                        >
+                          Next run
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontFamily: "var(--mono)",
+                            color: "var(--text)",
+                          }}
+                        >
+                          Tomorrow · 06:00 UTC
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text3)",
+                            marginTop: 2,
+                          }}
+                        >
+                          computed vs AWS billed variance
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ ...s.section, margin: 0 }}>
+                <div style={s.secHead}>
+                  <span style={s.secTitle}>Wrapper coverage</span>
+                  <span style={s.ts}>7d window</span>
+                </div>
+                <div style={s.secBody}>
+                  {!cov ? (
+                    <span style={s.spinner} />
+                  ) : (
+                    <>
+                      <div
+                        style={{
+                          fontSize: 34,
+                          fontWeight: 500,
+                          fontFamily: "var(--mono)",
+                          color: cColor,
+                          letterSpacing: "-1px",
+                          marginBottom: 12,
+                        }}
+                      >
+                        {fmtP(cPct)}
+                      </div>
+                      {[
+                        ["Wrapper events", cov.wrapper_events],
+                        ["Backfill events", cov.backfill_events],
+                        ["Total", cov.total_events],
+                      ].map(([l, v], i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            fontSize: 12,
+                            padding: "5px 0",
+                            borderBottom:
+                              i < 2 ? "0.5px solid var(--border)" : "none",
+                            color: "var(--text2)",
+                          }}
+                        >
+                          <span>{l}</span>
+                          <span
+                            style={{
+                              fontFamily: "var(--mono)",
+                              color: "var(--text)",
+                            }}
+                          >
+                            {(v || 0).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                      {cPct < 90 && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: "8px 12px",
+                            border: "0.5px solid var(--amber)",
+                            borderRadius: 6,
+                            color: "var(--amber)",
+                            fontSize: 11,
+                            fontFamily: "var(--mono)",
+                          }}
+                        >
+                          Coverage below 90% — check for uninstrumented calls.
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div style={s.footer}>
+              <div style={s.footNote}>
+                token-computed · not from billing pipeline · price table v1
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {[
+                  ["var(--green)", "ingest api"],
+                  ["var(--green)", "cost compute"],
+                  ["var(--text3)", "reconcile 06:00"],
+                  ["var(--text3)", "backfill hourly"],
+                ].map(([c, l]) => (
+                  <div
+                    key={l}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontSize: 11,
+                      color: "var(--text3)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: "50%",
+                        background: c,
+                      }}
+                    />
+                    {l}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
+</html>
