@@ -135,9 +135,15 @@ jobs:
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           CUR_BUCKET_NAME: ${{ secrets.CUR_BUCKET_NAME }}
         run: |
-          npx cdk bootstrap \
-            aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }} \
-            --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
+          # Check if CDKToolkit stack already exists and is complete
+          STATUS=$(aws cloudformation describe-stacks             --stack-name CDKToolkit             --region ${{ env.AWS_REGION }}             --query "Stacks[0].StackStatus"             --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+
+          if [[ "$STATUS" == "CREATE_COMPLETE" || "$STATUS" == "UPDATE_COMPLETE" ]]; then
+            echo "CDKToolkit already bootstrapped (status: $STATUS) — skipping"
+          else
+            echo "Bootstrapping CDK (current status: $STATUS)"
+            npx cdk bootstrap               aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }}               --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
+          fi
 
       - name: CDK deploy
         env:
@@ -166,7 +172,43 @@ jobs:
           retention-days: 30
 
   # ────────────────────────────────────────────────────────────────
-  # JOB 4 — Seed price table (runs when seed file changes)
+  # JOB 4 — Deploy dashboard to S3
+  # ────────────────────────────────────────────────────────────────
+  deploy-dashboard:
+    name: Deploy dashboard
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create bucket if not exists
+        run: |
+          aws s3api head-bucket --bucket bedrock-cost-dashboard-${{ secrets.AWS_ACCOUNT_ID }} 2>/dev/null ||           aws s3 mb s3://bedrock-cost-dashboard-${{ secrets.AWS_ACCOUNT_ID }} --region ${{ env.AWS_REGION }}
+
+      - name: Configure static website hosting
+        run: |
+          aws s3api put-public-access-block             --bucket bedrock-cost-dashboard-${{ secrets.AWS_ACCOUNT_ID }}             --public-access-block-configuration "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false"
+          aws s3 website s3://bedrock-cost-dashboard-${{ secrets.AWS_ACCOUNT_ID }}             --index-document index.html
+          aws s3api put-bucket-policy             --bucket bedrock-cost-dashboard-${{ secrets.AWS_ACCOUNT_ID }}             --policy '{"Version":"2012-10-17","Statement":[{"Sid":"PublicRead","Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::bedrock-cost-dashboard-${{ secrets.AWS_ACCOUNT_ID }}/*"}]}'
+
+      - name: Upload dashboard
+        run: |
+          aws s3 cp dashboard/index.html             s3://bedrock-cost-dashboard-${{ secrets.AWS_ACCOUNT_ID }}/index.html             --content-type "text/html"
+
+      - name: Print dashboard URL
+        run: |
+          echo "### Dashboard deployed" >> $GITHUB_STEP_SUMMARY
+          echo "URL: http://bedrock-cost-dashboard-${{ secrets.AWS_ACCOUNT_ID }}.s3-website.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_STEP_SUMMARY
+
+  # ────────────────────────────────────────────────────────────────
+  # JOB 5 — Seed price table (runs when seed file changes)
   # ────────────────────────────────────────────────────────────────
   seed-prices:
     name: Seed price table
