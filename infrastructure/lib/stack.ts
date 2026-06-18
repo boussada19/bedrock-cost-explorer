@@ -58,6 +58,16 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       });
     }
 
+    // MSP tenant index — partition key is `source` (the client/tenant ID).
+    // Enables O(1) per-tenant queries without full-table scans.
+    // `source` values: 'wrapper' | 'cloudwatch_backfill' | '<client-id>'
+    eventsTable.addGlobalSecondaryIndex({
+      indexName:      "SourceTimestampIndex",
+      partitionKey:   { name: "source",    type: dynamodb.AttributeType.STRING },
+      sortKey:        { name: "timestamp", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     const priceTable = new dynamodb.Table(this, "BedrockPriceTable", {
       tableName: "bedrock_price_table",
       partitionKey: { name: "PK", type: dynamodb.AttributeType.STRING },
@@ -117,6 +127,8 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       EVENT_RETENTION_DAYS:      String(eventRetentionDays),
       POWERTOOLS_SERVICE_NAME:   "bedrock-cost-explorer",
       LOG_LEVEL:                 "INFO",
+      // MSP: name of the GSI that partitions events by tenant (source field)
+      TENANT_INDEX:              "SourceTimestampIndex",
     };
     if (props.curBucketName) {
       commonEnv["CUR_BUCKET"] = props.curBucketName;
