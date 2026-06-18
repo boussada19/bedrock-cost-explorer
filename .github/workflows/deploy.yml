@@ -135,15 +135,14 @@ jobs:
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           CUR_BUCKET_NAME: ${{ secrets.CUR_BUCKET_NAME }}
         run: |
-          # Check if CDKToolkit stack already exists and is complete
-          STATUS=$(aws cloudformation describe-stacks             --stack-name CDKToolkit             --region ${{ env.AWS_REGION }}             --query "Stacks[0].StackStatus"             --output text 2>/dev/null || echo "DOES_NOT_EXIST")
-
-          if [[ "$STATUS" == "CREATE_COMPLETE" || "$STATUS" == "UPDATE_COMPLETE" ]]; then
-            echo "CDKToolkit already bootstrapped (status: $STATUS) — skipping"
-          else
-            echo "Bootstrapping CDK (current status: $STATUS)"
-            npx cdk bootstrap               aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }}               --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
-          fi
+          # Always run bootstrap — it is fully idempotent.
+          # When already bootstrapped it prints "(no changes)" and exits in ~10s.
+          # Skipping it was causing "No bucket named cdk-hnb659fds-assets-*"
+          # errors when the bucket existed in the stack but was deleted externally.
+          echo "Running cdk bootstrap (idempotent — safe to run every time)..."
+          npx cdk bootstrap \
+            aws://${{ secrets.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }} \
+            --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
 
       - name: CDK deploy
         env:
