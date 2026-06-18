@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Atomic Computing | Enterprise AI Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.3.7/amazon-cognito-identity.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -178,12 +179,11 @@ canvas{display:block}
     <div class="topbar-r">
       <div class="aws-badge">☁ AWS Bedrock</div>
 
-      <!-- Client selector -->
-      <div class="tenant-wrap">
+      <!-- Client selector — visible to admins only -->
+      <div class="tenant-wrap" id="tenant-wrap" style="display:none">
         <span class="tenant-label">Client</span>
         <select class="tenant-select" id="tenant-select" onchange="onTenantChange()">
           <option value="">All Clients</option>
-          <!-- Options are populated dynamically from /query/tenants -->
           <optgroup label="Known clients" id="tenant-optgroup"></optgroup>
         </select>
       </div>
@@ -200,6 +200,13 @@ canvas{display:block}
       <span class="ts" id="last-ref"></span>
       <span class="spin" id="spin" style="display:none"></span>
       <button class="btn" onclick="loadAll()">↻ Refresh</button>
+      <div style="display:flex;align-items:center;gap:8px;padding-left:10px;border-left:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--text3)" id="user-email">—</span>
+        <button class="btn" onclick="AtomicAuth.logout()"
+          style="background:transparent;border:1px solid var(--border2);color:var(--text2);box-shadow:none;padding:6px 12px">
+          Sign out
+        </button>
+      </div>
     </div>
   </div>
 
@@ -355,12 +362,12 @@ canvas{display:block}
   </div>
 </div>
 
+<script src="auth.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────────────────────────
 const API = "https://17u3qrm9a4.execute-api.eu-central-1.amazonaws.com/v1/query";
-const KEY = "bUXRE6VDKAa3fjqY1GEShhF2AFhxgZ62AktmYh05";
 
 // ─────────────────────────────────────────────────────────────────
 // State
@@ -368,7 +375,9 @@ const KEY = "bUXRE6VDKAa3fjqY1GEShhF2AFhxgZ62AktmYh05";
 let windowHours     = 24;
 let granularity     = "hour";
 let dimKey          = "model_id";
-let currentTenantId = "";    // "" = all clients; "client-alpha" = scoped
+let currentTenantId = "";      // "" = all clients (admin only)
+let isAdmin         = false;   // set after auth
+let authClaims      = null;    // {email, tenantId, role, isAdmin}
 
 // ─────────────────────────────────────────────────────────────────
 // Vendor arbitrage multipliers relative to Bedrock on-demand pricing.
@@ -413,11 +422,22 @@ function tw() {
 }
 
 async function qfetch(path, params = {}) {
-  // Inject current tenant into every request that supports it
+  // Server derives tenant scope from the JWT; we still pass tenantId so
+  // admins can filter to a specific client. Clients are locked server-side.
   if (currentTenantId) params.tenantId = currentTenantId;
   const u = new URL(`${API}/${path}`);
   Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
-  const r = await fetch(u, { headers: { "X-Api-Key": KEY } });
+
+  const token = await AtomicAuth.getToken();
+  if (!token) { AtomicAuth.logout(); throw new Error("Session expired"); }
+
+  const r = await fetch(u, {
+    headers: { "Authorization": token },
+  });
+  if (r.status === 401 || r.status === 403) {
+    if (r.status === 401) { AtomicAuth.logout(); }
+    throw new Error(`${r.status} — not authorized`);
+  }
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
   return r.json();
 }
@@ -426,10 +446,13 @@ async function qfetch(path, params = {}) {
 // Tenant management
 // ─────────────────────────────────────────────────────────────────
 async function loadTenants() {
+  // Admin-only endpoint; clients never call it
+  if (!isAdmin) return;
   try {
-    // Omit tenantId for this call — it's always a global operation
+    const token = await AtomicAuth.getToken();
+    if (!token) return;
     const u = new URL(`${API}/tenants`);
-    const r = await fetch(u, { headers: { "X-Api-Key": KEY } });
+    const r = await fetch(u, { headers: { "Authorization": token } });
     if (!r.ok) return;
     const data = await r.json();
     const group = document.getElementById("tenant-optgroup");
@@ -441,10 +464,9 @@ async function loadTenants() {
       opt.textContent = tid;
       group.appendChild(opt);
     });
-    // Remove optgroup if empty
     if (!group.children.length) group.remove();
   } catch (e) {
-    // Graceful: tenant list is a convenience, not critical
+    // tenant list is a convenience, not critical
   }
 }
 
@@ -879,11 +901,44 @@ document.querySelectorAll("[data-d]").forEach(btn => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Boot
+// Boot — auth guard runs first, then load data
 // ─────────────────────────────────────────────────────────────────
-loadTenants();   // populate dropdown from live data
-loadAll();       // initial data load
-setInterval(loadAll, 60000);  // auto-refresh every 60s
+async function boot() {
+  // requireAuth redirects to login.html if no valid session
+  const claims = await AtomicAuth.requireAuth();
+  if (!claims) return;   // redirecting
+
+  authClaims = claims;
+  isAdmin    = claims.isAdmin;
+
+  // Show who's logged in
+  document.getElementById("user-email").textContent = claims.email;
+
+  if (isAdmin) {
+    // Admin: show the client selector + populate it
+    document.getElementById("tenant-wrap").style.display = "flex";
+    await loadTenants();
+  } else {
+    // Client: lock to their own tenant, hide selector + admin-only banner
+    currentTenantId = claims.tenantId;
+    document.getElementById("tenant-wrap").style.display = "none";
+    // Update the brand sub to show the client context
+    const ctx  = document.getElementById("tenant-ctx");
+    const name = document.getElementById("tenant-ctx-name");
+    if (ctx && name) {
+      ctx.classList.add("visible");
+      name.textContent = claims.tenantId;
+      // Hide the "view all clients" escape hatch for clients
+      const clr = ctx.querySelector(".clear-tenant");
+      if (clr) clr.style.display = "none";
+    }
+  }
+
+  await loadAll();
+  setInterval(loadAll, 60000);
+}
+
+boot();
 </script>
 </body>
 </html>

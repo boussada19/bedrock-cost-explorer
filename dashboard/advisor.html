@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Bedrock Advisor — Cost Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.3.7/amazon-cognito-identity.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -132,6 +133,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </style>
 </head>
 <body>
+<script src="auth.js"></script>
+<script>
+// Auth guard — redirect to login if no valid Cognito session
+AtomicAuth.requireAuth().then(claims => {
+  if (claims) {
+    var el = document.getElementById("user-email-tag");
+    if (el) el.textContent = claims.email;
+  }
+});
+</script>
 <div id="app">
 
   <!-- Topbar -->
@@ -671,7 +682,7 @@ function openSandbox(){
     outTok: r.outTok,
     cache: r.cachePct,
   });
-  window.location.href = "index.html#sandbox?" + params.toString();
+  window.location.href = "sandbox.html?" + params.toString();
 }
 
 function restart(){

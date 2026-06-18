@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sign in · Atomic Computing</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.3.7/amazon-cognito-identity.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#3b4cff;--primary-h:#3344e6;--secondary:#30c68a;--accent:#ff9900;
+  --bg:#f0f2f5;--surface:#ffffff;--text:#212529;--text2:#555b63;--text3:#9ea5ad;
+  --border:#dee2e6;--border2:#c8cdd3;--radius:14px;--red:#dc3545;
+  --shadow:0 6px 24px rgba(0,0,0,.10);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0e0f14;--surface:#16181f;--text:#e8eaf0;--text2:#9098a8;--text3:#545c6a;
+  --border:rgba(255,255,255,.09);--border2:rgba(255,255,255,.16);
+  --shadow:0 6px 24px rgba(0,0,0,.4);
+}}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);width:100%;max-width:400px;padding:40px 36px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.logo-img{height:38px;width:auto;object-fit:contain}
+.logo-fb{width:38px;height:38px;border-radius:9px;background:var(--primary);display:none;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
+.brand-name{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.subtitle{font-size:12px;color:var(--text3);margin-bottom:28px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.field input{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;transition:border-color .15s}
+.field input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(59,76,255,.12)}
+.btn{width:100%;padding:12px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 2px 8px rgba(59,76,255,.3);margin-top:4px}
+.btn:hover{background:var(--primary-h);transform:translateY(-1px)}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.error{margin-top:14px;padding:10px 13px;border-radius:10px;background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.25);color:var(--red);font-size:12px;display:none}
+.error.show{display:block}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top:2px solid #fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.foot{margin-top:24px;text-align:center;font-size:11px;color:var(--text3)}
+.aws-badge{display:inline-flex;align-items:center;gap:5px;background:var(--accent);color:#fff;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;margin-top:10px}
+.np-note{font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.6;display:none}
+.np-note.show{display:block}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="brand">
+    <img src="logo.png" class="logo-img" alt="Atomic Computing"
+      onerror="this.style.display='none';document.getElementById('lfb').style.display='flex'"/>
+    <div id="lfb" class="logo-fb">AC</div>
+    <div class="brand-name">Atomic Computing</div>
+  </div>
+  <div class="subtitle">Enterprise AI Hub — sign in to continue</div>
+
+  <div class="np-note" id="np-note">
+    First sign-in: please set a new permanent password (12+ chars, upper, lower, number, symbol).
+  </div>
+
+  <div class="field">
+    <label for="email">Email</label>
+    <input type="email" id="email" autocomplete="username" placeholder="you@company.com"/>
+  </div>
+  <div class="field">
+    <label for="password" id="pw-label">Password</label>
+    <input type="password" id="password" autocomplete="current-password" placeholder="••••••••••••"/>
+  </div>
+
+  <button class="btn" id="login-btn" onclick="handleLogin()">Sign in</button>
+
+  <div class="error" id="error"></div>
+
+  <div class="foot">
+    Secured by AWS Cognito
+    <div><span class="aws-badge">☁ AWS eu-central-1</span></div>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script>
+let newPasswordMode = false;
+let pendingUser = null;
+
+// If already logged in, skip straight to the dashboard
+AtomicAuth.getToken().then(token => {
+  if (token) window.location.href = "index.html";
+});
+
+function showError(msg) {
+  const el = document.getElementById("error");
+  el.textContent = msg;
+  el.classList.add("show");
+}
+function clearError() {
+  document.getElementById("error").classList.remove("show");
+}
+
+async function handleLogin() {
+  clearError();
+  const email = document.getElementById("email").value.trim();
+  const pw    = document.getElementById("password").value;
+  const btn   = document.getElementById("login-btn");
+
+  if (!email || !pw) { showError("Email and password are required."); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Signing in…';
+
+  try {
+    if (newPasswordMode && pendingUser) {
+      await AtomicAuth.completeNewPassword(pendingUser, pw);
+    } else {
+      await AtomicAuth.login(email, pw);
+    }
+    window.location.href = "index.html";
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+
+    if (err && err.code === "NewPasswordRequired") {
+      // Switch the form into "set new password" mode
+      newPasswordMode = true;
+      pendingUser = err.user;
+      document.getElementById("np-note").classList.add("show");
+      document.getElementById("pw-label").textContent = "New permanent password";
+      document.getElementById("password").value = "";
+      document.getElementById("password").placeholder = "New password";
+      document.getElementById("login-btn").textContent = "Set password & sign in";
+      return;
+    }
+
+    const msg = (err && err.message) ? err.message : "Sign-in failed. Check your credentials.";
+    showError(msg);
+  }
+}
+
+// Enter key submits
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter") handleLogin();
+});
+</script>
+</body>
+</html>

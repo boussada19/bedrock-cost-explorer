@@ -10,6 +10,7 @@ import * as sns from "aws-cdk-lib/aws-sns";
 import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as cognito from "aws-cdk-lib/aws-cognito";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import { Construct } from "constructs";
 
@@ -236,6 +237,56 @@ export class BedrockCostExplorerStack extends cdk.Stack {
     priceTable.grantReadData(queryLambda);
     reconciliationTable.grantReadData(queryLambda);
 
+    // ── Cognito User Pool (MSP authentication) ────────────────────
+    //
+    // Each user carries a custom:tenant_id attribute:
+    //   - a client user → their tenant ID, e.g. "client-alpha"
+    //   - an Atomic Computing admin → "*" (can view all tenants)
+    //
+    // The query Lambda reads tenant scope from the VERIFIED JWT claims,
+    // never from a client-supplied query param — so a logged-in client
+    // physically cannot read another client's data.
+
+    const userPool = new cognito.UserPool(this, "EnterpriseHubUserPool", {
+      userPoolName: "atomic-computing-hub",
+      selfSignUpEnabled: false,                 // admins create client accounts
+      signInAliases: { email: true },
+      autoVerify: { email: true },
+      standardAttributes: {
+        email: { required: true, mutable: false },
+      },
+      customAttributes: {
+        // "*" = admin (all tenants); otherwise the client's tenant id
+        tenant_id: new cognito.StringAttribute({ minLen: 1, maxLen: 64, mutable: true }),
+        // "admin" | "client"
+        role:      new cognito.StringAttribute({ minLen: 1, maxLen: 16, mutable: true }),
+      },
+      passwordPolicy: {
+        minLength: 12,
+        requireLowercase: true,
+        requireUppercase: true,
+        requireDigits: true,
+        requireSymbols: true,
+      },
+      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    const userPoolClient = userPool.addClient("HubWebClient", {
+      userPoolClientName: "hub-web",
+      authFlows: {
+        userSrp: true,
+        userPassword: true,   // allows the simple USER_PASSWORD_AUTH login flow
+      },
+      accessTokenValidity:  cdk.Duration.hours(8),
+      idTokenValidity:      cdk.Duration.hours(8),
+      refreshTokenValidity: cdk.Duration.days(30),
+      preventUserExistenceErrors: true,
+    });
+
+    // Pass the user-pool id into the query Lambda env so it can be referenced
+    queryLambda.addEnvironment("USER_POOL_ID", userPool.userPoolId);
+
     // ── API Gateway ───────────────────────────────────────────────
 
     const api = new apigateway.RestApi(this, "BedrockCostApi", {
@@ -252,7 +303,7 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: ["Content-Type", "X-Api-Key"],
+        allowHeaders: ["Content-Type", "X-Api-Key", "Authorization"],
       },
     });
 
@@ -275,8 +326,25 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       { apiKeyRequired: true }
     );
 
+    // Cognito authorizer — every /query/* request must carry a valid
+    // ID token in the Authorization header. The Lambda then derives the
+    // tenant from the token's custom:tenant_id claim.
+    const cognitoAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(
+      this, "HubAuthorizer", {
+        cognitoUserPools: [userPool],
+        authorizerName: "atomic-hub-authorizer",
+        identitySource: "method.request.header.Authorization",
+      },
+    );
+
     const queryProxy = api.root.addResource("query").addResource("{proxy+}");
-    queryProxy.addMethod("GET", new apigateway.LambdaIntegration(queryLambda));
+    queryProxy.addMethod("GET",
+      new apigateway.LambdaIntegration(queryLambda),
+      {
+        authorizer: cognitoAuthorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      },
+    );
 
     // ── Outputs ───────────────────────────────────────────────────
 
@@ -297,5 +365,19 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       description: "API key ID — retrieve value from console or CLI",
     });
     new cdk.CfnOutput(this, "AlertTopicArn", { value: alertTopic.topicArn });
+
+    // ── Cognito outputs (needed by the dashboard login page) ───────
+    new cdk.CfnOutput(this, "UserPoolId", {
+      value:       userPool.userPoolId,
+      description: "Cognito User Pool ID — used by dashboard login",
+    });
+    new cdk.CfnOutput(this, "UserPoolClientId", {
+      value:       userPoolClient.userPoolClientId,
+      description: "Cognito App Client ID — used by dashboard login",
+    });
+    new cdk.CfnOutput(this, "CognitoRegion", {
+      value:       this.region,
+      description: "Region for Cognito SDK calls",
+    });
   }
 }

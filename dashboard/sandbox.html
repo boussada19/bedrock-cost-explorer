@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Cost Sandbox — Bedrock Cost Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.3.7/amazon-cognito-identity.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -209,6 +210,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </style>
 </head>
 <body>
+<script src="auth.js"></script>
+<script>
+// Auth guard — redirect to login if no valid Cognito session
+AtomicAuth.requireAuth().then(claims => {
+  if (claims) {
+    var el = document.getElementById("user-email-tag");
+    if (el) el.textContent = claims.email;
+  }
+});
+</script>
 <div id="app">
 
   <!-- Topbar -->
@@ -445,9 +456,11 @@ async function pgFetchLivePrices(){
   try {
     // Attempt to read price table directly from DynamoDB via query API
     // Falls back gracefully — never throws to the user
+    const token = await AtomicAuth.getToken();
+    if (!token) return;
     const res = await fetch(
       `${API}/by-model?start=${new Date(Date.now()-86400000*30).toISOString()}&end=${new Date().toISOString()}`,
-      { headers: { "X-Api-Key": KEY } }
+      { headers: { "Authorization": token } }
     );
     if(!res.ok) throw new Error("non-200");
     const data = await res.json();

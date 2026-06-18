@@ -153,6 +153,47 @@ def get_events(params: Dict, start_ts: str, end_ts: str) -> List[Dict]:
 
 
 # ─────────────────────────────────────────────────────────────────
+# Tenant authorization — derive scope from the VERIFIED Cognito JWT.
+#
+# API Gateway's Cognito authorizer validates the token signature and
+# expiry, then forwards the claims under requestContext.authorizer.claims.
+# We read custom:tenant_id from there. A client can NOT override this by
+# passing ?tenantId= — server-side scope always wins.
+# ─────────────────────────────────────────────────────────────────
+
+def resolve_tenant_scope(event: dict, params: Dict) -> Tuple[Optional[str], bool]:
+    """
+    Returns (effective_tenant_id, is_admin).
+
+      - Admin (custom:tenant_id == "*"): may pass ?tenantId= to scope to any
+        client, or omit it to see all tenants. effective = the param or None.
+      - Client (custom:tenant_id == "client-x"): ALWAYS scoped to their own
+        tenant regardless of any query param they try to send.
+
+    If no claims are present (e.g. local testing without authorizer),
+    falls back to the query param so existing tooling keeps working.
+    """
+    claims = (
+        event.get("requestContext", {})
+             .get("authorizer", {})
+             .get("claims", {})
+    )
+    token_tenant = claims.get("custom:tenant_id")
+
+    # No authenticated context (local/dev) → honor the param as before
+    if token_tenant is None:
+        return (params.get("tenantId", "").strip() or None, False)
+
+    # Admin: "*" means all tenants; respect optional ?tenantId= filter
+    if token_tenant == "*":
+        requested = params.get("tenantId", "").strip()
+        return (requested or None, True)
+
+    # Client: hard-locked to their own tenant
+    return (token_tenant, False)
+
+
+# ─────────────────────────────────────────────────────────────────
 # Aggregation helpers
 # ─────────────────────────────────────────────────────────────────
 
@@ -457,12 +498,34 @@ def lambda_handler(event: dict, context: Any) -> dict:
     path   = event.get("path", "")
     params = event.get("queryStringParameters") or {}
 
-    logger.info("Query request: path=%s tenant=%s", path, params.get("tenantId", "—"))
+    # ── Derive tenant scope from the verified JWT (server-side authority) ──
+    effective_tenant, is_admin = resolve_tenant_scope(event, params)
+
+    # Force params.tenantId to the server-resolved value. A client cannot
+    # widen their scope; an admin's optional filter is preserved.
+    if effective_tenant:
+        params = {**params, "tenantId": effective_tenant}
+    else:
+        # admin viewing all tenants → ensure no stale tenantId leaks through
+        params = {k: v for k, v in params.items() if k != "tenantId"}
+
+    logger.info(
+        "Query: path=%s tenant=%s admin=%s",
+        path, effective_tenant or "ALL", is_admin,
+    )
 
     if "/query/" in path:
         normalized_path = "/query/" + path.split("/query/")[-1].lstrip("/")
     else:
         normalized_path = path
+
+    # Admin-only endpoints
+    ADMIN_ONLY = {"/query/tenants"}
+    if normalized_path in ADMIN_ONLY and not is_admin:
+        return _response(403, {
+            "error": "Forbidden",
+            "detail": "This endpoint requires an administrator account.",
+        })
 
     handler_fn = ROUTE_MAP.get(normalized_path)
     if handler_fn is None:
