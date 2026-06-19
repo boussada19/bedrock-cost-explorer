@@ -51,8 +51,25 @@ REQUIRED_FIELDS = {
 }
 
 VALID_INVOCATION_TYPES = {"invoke_model", "converse", "agent_step"}
-VALID_STATUSES = {"success", "error", "throttled"}
-VALID_SOURCES = {"wrapper", "cloudwatch_backfill"}
+VALID_STATUSES         = {"success", "error", "throttled"}
+
+# Internal sentinel values used by the platform itself.
+# Any other non-empty string is treated as a client/tenant ID.
+INTERNAL_SOURCES = {"wrapper", "cloudwatch_backfill"}
+
+
+def _is_valid_source(source: str) -> bool:
+    """
+    Accept internal sentinels OR any non-empty alphanumeric-with-hyphens
+    string as a tenant/client ID (e.g. 'client-alpha', 'acme-corp').
+    """
+    if not source or not isinstance(source, str):
+        return False
+    if source in INTERNAL_SOURCES:
+        return True
+    # Tenant IDs: 1-64 chars, letters/digits/hyphens/underscores only
+    import re
+    return bool(re.match(r'^[a-zA-Z0-9_-]{1,64}$', source))
 
 
 def validate_event(event: dict) -> list[str]:
@@ -73,8 +90,12 @@ def validate_event(event: dict) -> list[str]:
     if event["status"] not in VALID_STATUSES:
         errors.append(f"Invalid status: {event['status']!r}")
 
-    if event["source"] not in VALID_SOURCES:
-        errors.append(f"Invalid source: {event['source']!r}")
+    if not _is_valid_source(event["source"]):
+        errors.append(
+            f"Invalid source: {event['source']!r}. "
+            f"Must be 'wrapper', 'cloudwatch_backfill', or a valid tenant ID "
+            f"(letters, digits, hyphens, underscores, 1-64 chars)."
+        )
 
     try:
         datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00"))
