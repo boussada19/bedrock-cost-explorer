@@ -3,140 +3,212 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Sign in · Atomic Computing</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.3.7/amazon-cognito-identity.min.js"></script>
+<title>Atomic Computing | Portal Sign-In</title>
+<script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.16/dist/amazon-cognito-identity.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --primary:#3b4cff;--primary-h:#3344e6;--secondary:#30c68a;--accent:#ff9900;
-  --bg:#f0f2f5;--surface:#ffffff;--text:#212529;--text2:#555b63;--text3:#9ea5ad;
-  --border:#dee2e6;--border2:#c8cdd3;--radius:14px;--red:#dc3545;
-  --shadow:0 6px 24px rgba(0,0,0,.10);
+  --bg:#f0f2f5;--surface:#fff;--text:#212529;--text2:#555b63;--text3:#9ea5ad;
+  --border:#dee2e6;--red:#dc3545;--radius:14px;
+  --shadow:0 8px 32px rgba(0,0,0,.10);
 }
 @media(prefers-color-scheme:dark){:root{
   --bg:#0e0f14;--surface:#16181f;--text:#e8eaf0;--text2:#9098a8;--text3:#545c6a;
-  --border:rgba(255,255,255,.09);--border2:rgba(255,255,255,.16);
-  --shadow:0 6px 24px rgba(0,0,0,.4);
+  --border:rgba(255,255,255,.09);--shadow:0 8px 32px rgba(0,0,0,.4);
 }}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);width:100%;max-width:400px;padding:40px 36px}
-.brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-.logo-img{height:38px;width:auto;object-fit:contain}
-.logo-fb{width:38px;height:38px;border-radius:9px;background:var(--primary);display:none;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
-.brand-name{font-size:17px;font-weight:700;letter-spacing:-.3px}
-.subtitle{font-size:12px;color:var(--text3);margin-bottom:28px}
+body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);width:100%;max-width:420px;overflow:hidden}
+
+/* Header strip */
+.card-header{background:var(--primary);padding:28px 32px 24px;text-align:center}
+.logo-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px}
+.logo-img{height:42px;width:auto;object-fit:contain;filter:brightness(0) invert(1)}
+.logo-fb{width:42px;height:42px;border-radius:10px;background:rgba(255,255,255,.2);display:none;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700}
+.brand-name{font-size:20px;font-weight:700;color:#fff;letter-spacing:-.3px}
+.brand-sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:4px;letter-spacing:.02em}
+
+/* Body */
+.card-body{padding:28px 32px 32px}
 .field{margin-bottom:16px}
-.field label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
-.field input{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;transition:border-color .15s}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em}
+.field input{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;transition:border-color .15s,box-shadow .15s}
 .field input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(59,76,255,.12)}
+.field input::placeholder{color:var(--text3)}
+
 .btn{width:100%;padding:12px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 2px 8px rgba(59,76,255,.3);margin-top:4px}
-.btn:hover{background:var(--primary-h);transform:translateY(-1px)}
-.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
-.error{margin-top:14px;padding:10px 13px;border-radius:10px;background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.25);color:var(--red);font-size:12px;display:none}
-.error.show{display:block}
+.btn:hover{background:var(--primary-h);transform:translateY(-1px);box-shadow:0 4px 14px rgba(59,76,255,.4)}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}
+
+.err{margin-top:14px;padding:10px 14px;border-radius:10px;background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.25);color:var(--red);font-size:12px;display:none;line-height:1.6}
+.err.show{display:block}
+
+.np-banner{padding:11px 14px;border-radius:10px;background:rgba(59,76,255,.07);border:1px solid rgba(59,76,255,.2);color:var(--primary);font-size:12px;margin-bottom:16px;display:none;line-height:1.6}
+.np-banner.show{display:block}
+
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top:2px solid #fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.foot{margin-top:24px;text-align:center;font-size:11px;color:var(--text3)}
-.aws-badge{display:inline-flex;align-items:center;gap:5px;background:var(--accent);color:#fff;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;margin-top:10px}
-.np-note{font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.6;display:none}
-.np-note.show{display:block}
+
+.footer{margin-top:20px;text-align:center;font-size:11px;color:var(--text3)}
+.aws-pill{display:inline-flex;align-items:center;gap:5px;background:var(--accent);color:#fff;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;margin-top:8px}
 </style>
 </head>
 <body>
-<div class="login-card">
-  <div class="brand">
-    <img src="logo.png" class="logo-img" alt="Atomic Computing"
-      onerror="this.style.display='none';document.getElementById('lfb').style.display='flex'"/>
-    <div id="lfb" class="logo-fb">AC</div>
-    <div class="brand-name">Atomic Computing</div>
-  </div>
-  <div class="subtitle">Enterprise AI Hub — sign in to continue</div>
-
-  <div class="np-note" id="np-note">
-    First sign-in: please set a new permanent password (12+ chars, upper, lower, number, symbol).
+<div class="card">
+  <div class="card-header">
+    <div class="logo-row">
+      <img src="logo.png" class="logo-img" alt="Atomic Computing"
+        onerror="this.style.display='none';document.getElementById('lfb').style.display='flex'"/>
+      <div id="lfb" class="logo-fb">AC</div>
+      <div class="brand-name">Atomic Computing</div>
+    </div>
+    <div class="brand-sub">Enterprise AI Hub &nbsp;·&nbsp; Portal Sign-In</div>
   </div>
 
-  <div class="field">
-    <label for="email">Email</label>
-    <input type="email" id="email" autocomplete="username" placeholder="you@company.com"/>
-  </div>
-  <div class="field">
-    <label for="password" id="pw-label">Password</label>
-    <input type="password" id="password" autocomplete="current-password" placeholder="••••••••••••"/>
-  </div>
+  <div class="card-body">
+    <div class="np-banner" id="np-banner">
+      🔐 First sign-in detected. Please set a new permanent password.<br>
+      <small>Min 12 characters · uppercase · lowercase · number · symbol</small>
+    </div>
 
-  <button class="btn" id="login-btn" onclick="handleLogin()">Sign in</button>
+    <div class="field">
+      <label for="email">Email address</label>
+      <input type="email" id="email" autocomplete="username" placeholder="you@company.com"/>
+    </div>
+    <div class="field">
+      <label for="password" id="pw-label">Password</label>
+      <input type="password" id="password" autocomplete="current-password" placeholder="••••••••••••"/>
+    </div>
 
-  <div class="error" id="error"></div>
+    <button class="btn" id="btn" onclick="handleLogin()">Sign in</button>
+    <div class="err" id="err"></div>
 
-  <div class="foot">
-    Secured by AWS Cognito
-    <div><span class="aws-badge">☁ AWS eu-central-1</span></div>
+    <div class="footer">
+      Secured by Amazon Cognito
+      <div><span class="aws-pill">☁ AWS eu-central-1</span></div>
+    </div>
   </div>
 </div>
 
-<script src="auth.js"></script>
 <script>
-let newPasswordMode = false;
-let pendingUser = null;
+// ── Cognito config — filled from stack outputs after CDK deploy ──
+// UPDATE these two values after running: cdk deploy → look for UserPoolId / UserPoolClientId outputs
+const POOL_ID   = "REPLACE_WITH_UserPoolId";       // e.g. eu-central-1_Abc123xyz
+const CLIENT_ID = "REPLACE_WITH_UserPoolClientId"; // e.g. 1a2b3c4defghijk
 
-// If already logged in, skip straight to the dashboard
-AtomicAuth.getToken().then(token => {
-  if (token) window.location.href = "index.html";
+const pool = new AmazonCognitoIdentity.CognitoUserPool({
+  UserPoolId: POOL_ID,
+  ClientId:   CLIENT_ID,
 });
 
-function showError(msg) {
-  const el = document.getElementById("error");
-  el.textContent = msg;
-  el.classList.add("show");
-}
-function clearError() {
-  document.getElementById("error").classList.remove("show");
-}
+let newPasswordMode = false;
+let pendingUser     = null;
 
-async function handleLogin() {
-  clearError();
-  const email = document.getElementById("email").value.trim();
+// If already signed in, go straight to dashboard
+(function checkExisting(){
+  const u = pool.getCurrentUser();
+  if(!u) return;
+  u.getSession((err, sess) => {
+    if(!err && sess && sess.isValid()){
+      window.location.href = "index.html";
+    }
+  });
+})();
+
+function showErr(msg){ const e=document.getElementById("err"); e.textContent=msg; e.classList.add("show"); }
+function clearErr()  { document.getElementById("err").classList.remove("show"); }
+
+async function handleLogin(){
+  clearErr();
+  const email = document.getElementById("email").value.trim().toLowerCase();
   const pw    = document.getElementById("password").value;
-  const btn   = document.getElementById("login-btn");
+  const btn   = document.getElementById("btn");
 
-  if (!email || !pw) { showError("Email and password are required."); return; }
+  if(!email || !pw){ showErr("Email and password are required."); return; }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span>Signing in…';
 
   try {
-    if (newPasswordMode && pendingUser) {
-      await AtomicAuth.completeNewPassword(pendingUser, pw);
+    if(newPasswordMode && pendingUser){
+      await completeNewPassword(pendingUser, pw);
     } else {
-      await AtomicAuth.login(email, pw);
+      await authenticate(email, pw);
     }
-    window.location.href = "index.html";
-  } catch (err) {
+    // Redirect happens inside the callbacks
+  } catch(e){
     btn.disabled = false;
     btn.textContent = "Sign in";
-
-    if (err && err.code === "NewPasswordRequired") {
-      // Switch the form into "set new password" mode
-      newPasswordMode = true;
-      pendingUser = err.user;
-      document.getElementById("np-note").classList.add("show");
-      document.getElementById("pw-label").textContent = "New permanent password";
-      document.getElementById("password").value = "";
-      document.getElementById("password").placeholder = "New password";
-      document.getElementById("login-btn").textContent = "Set password & sign in";
-      return;
-    }
-
-    const msg = (err && err.message) ? err.message : "Sign-in failed. Check your credentials.";
-    showError(msg);
+    showErr(e.message || "Sign-in failed. Please check your credentials.");
   }
 }
 
-// Enter key submits
-document.addEventListener("keydown", e => {
-  if (e.key === "Enter") handleLogin();
-});
+function authenticate(email, pw){
+  return new Promise((resolve, reject) => {
+    const user    = new AmazonCognitoIdentity.CognitoUser({ Username: email, Pool: pool });
+    const details = new AmazonCognitoIdentity.AuthenticationDetails({ Username: email, Password: pw });
+
+    user.authenticateUser(details, {
+      onSuccess(session){
+        saveSessionAndRedirect(session);
+        resolve();
+      },
+      onFailure(err){
+        reject(err);
+      },
+      newPasswordRequired(userAttributes, requiredAttributes){
+        // First login — switch form to new-password mode
+        newPasswordMode = true;
+        pendingUser = user;
+        document.getElementById("np-banner").classList.add("show");
+        document.getElementById("pw-label").textContent = "New permanent password";
+        document.getElementById("password").value = "";
+        document.getElementById("password").placeholder = "Min 12 chars — e.g. MyP@ssw0rd!1";
+        document.getElementById("btn").textContent = "Set password & sign in";
+        document.getElementById("btn").disabled = false;
+        resolve(); // don't reject — just switch mode
+      },
+    });
+  });
+}
+
+function completeNewPassword(user, newPw){
+  return new Promise((resolve, reject) => {
+    user.completeNewPasswordChallenge(newPw, {}, {
+      onSuccess(session){
+        saveSessionAndRedirect(session);
+        resolve();
+      },
+      onFailure(err){ reject(err); },
+    });
+  });
+}
+
+function saveSessionAndRedirect(session){
+  // Store tokens in localStorage — index.html reads these on load
+  const idToken      = session.getIdToken().getJwtToken();
+  const accessToken  = session.getAccessToken().getJwtToken();
+  const refreshToken = session.getRefreshToken().getToken();
+  const payload      = session.getIdToken().decodePayload();
+
+  localStorage.setItem("atomic_id_token",      idToken);
+  localStorage.setItem("atomic_access_token",  accessToken);
+  localStorage.setItem("atomic_refresh_token", refreshToken);
+  localStorage.setItem("atomic_token_exp",     payload.exp);
+  localStorage.setItem("atomic_email",         payload.email || "");
+  localStorage.setItem("atomic_tenant_id",     payload["custom:tenant_id"] || "");
+  localStorage.setItem("atomic_role",          payload["custom:role"] || "client");
+
+  // Determine group from cognito:groups claim
+  const groups = payload["cognito:groups"] || [];
+  const isAdmin = groups.includes("Admins");
+  localStorage.setItem("atomic_is_admin", isAdmin ? "true" : "false");
+
+  window.location.href = "index.html";
+}
+
+document.addEventListener("keydown", e => { if(e.key === "Enter") handleLogin(); });
 </script>
 </body>
 </html>

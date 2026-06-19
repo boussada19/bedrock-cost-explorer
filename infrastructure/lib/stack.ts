@@ -284,8 +284,53 @@ export class BedrockCostExplorerStack extends cdk.Stack {
       preventUserExistenceErrors: true,
     });
 
+    // ── Cognito Groups ────────────────────────────────────────────
+    // Admins: Atomic Computing employees — can view all tenants
+    // Clients: individual client accounts — locked to their own tenant
+    new cognito.CfnUserPoolGroup(this, "AdminsGroup", {
+      userPoolId:  userPool.userPoolId,
+      groupName:   "Admins",
+      description: "Atomic Computing employees — full dashboard access",
+      precedence:  1,
+    });
+    new cognito.CfnUserPoolGroup(this, "ClientsGroup", {
+      userPoolId:  userPool.userPoolId,
+      groupName:   "Clients",
+      description: "Client accounts — isolated to their own tenant data",
+      precedence:  10,
+    });
+
     // Pass the user-pool id into the query Lambda env so it can be referenced
     queryLambda.addEnvironment("USER_POOL_ID", userPool.userPoolId);
+
+    // ── Lambda: createClientUser (admin tool) ────────────────────
+    // Atomic Computing admins invoke this to onboard a new client.
+    // Never exposed via API Gateway — invoked directly via AWS CLI/console.
+    const createClientUserLambda = new lambda.Function(this, "CreateClientUserLambda", fn({
+      functionName: "bedrock-create-client-user",
+      code:         lambda.Code.fromAsset("../lambdas/create_client_user"),
+      handler:      "handler.lambda_handler",
+      timeout:      cdk.Duration.seconds(30),
+      memorySize:   128,
+    }));
+    createClientUserLambda.addEnvironment("USER_POOL_ID",   userPool.userPoolId);
+    createClientUserLambda.addEnvironment("USER_POOL_CLIENT_ID", userPoolClient.userPoolClientId);
+    createClientUserLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect:  iam.Effect.ALLOW,
+      actions: [
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminAddUserToGroup",
+        "cognito-idp:AdminUpdateUserAttributes",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:ListUsers",
+      ],
+      resources: [userPool.userPoolArn],
+    }));
+
+    new cdk.CfnOutput(this, "CreateClientUserFnName", {
+      value:       createClientUserLambda.functionName,
+      description: "Invoke to create a new client account",
+    });
 
     // ── API Gateway ───────────────────────────────────────────────
 

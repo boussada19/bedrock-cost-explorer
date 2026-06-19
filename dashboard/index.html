@@ -361,15 +361,124 @@ canvas{display:block}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.16/dist/amazon-cognito-identity.min.js"></script>
 <script>
-// ── Inline auth shim (no Cognito dependency) ─────────────────────
-const BEDROCK_API_KEY = "bUXRE6VDKAa3fjqY1GEShhF2AFhxgZ62AktmYh05";
+// ════════════════════════════════════════════════════════════════
+// Atomic Computing — Portal Authentication Layer
+//
+// Reads tokens stored by login.html from localStorage.
+// Validates expiry, refreshes silently if needed.
+// Admin:  custom:tenant_id = "internal-atomic" → sees all tenants
+// Client: custom:tenant_id = "client-alpha"   → locked to own data
+//
+// UPDATE these values from CDK stack outputs after deploy:
+// ════════════════════════════════════════════════════════════════
+const COGNITO_POOL_ID   = "REPLACE_WITH_UserPoolId";
+const COGNITO_CLIENT_ID = "REPLACE_WITH_UserPoolClientId";
+
+// Fallback API key used when Cognito is not yet deployed
+// (shim mode — remove after Cognito deploy succeeds)
+const FALLBACK_API_KEY  = "bUXRE6VDKAa3fjqY1GEShhF2AFhxgZ62AktmYh05";
+const COGNITO_ACTIVE    = COGNITO_POOL_ID !== "REPLACE_WITH_UserPoolId";
+
 const AtomicAuth = (function(){
-  async function getToken(){ return BEDROCK_API_KEY; }
-  async function getClaims(){ return {email:"admin@atomic.com",tenantId:"*",role:"admin",isAdmin:true}; }
-  async function requireAuth(){ return getClaims(); }
-  function logout(){ window.location.reload(); }
-  return {getToken,getClaims,requireAuth,logout};
+
+  // ── Token management ─────────────────────────────────────────
+  function getStoredToken(){
+    return localStorage.getItem("atomic_id_token");
+  }
+  function isExpired(){
+    const exp = parseInt(localStorage.getItem("atomic_token_exp") || "0", 10);
+    return Date.now() / 1000 > exp - 60; // 60s buffer
+  }
+  function clearSession(){
+    ["atomic_id_token","atomic_access_token","atomic_refresh_token",
+     "atomic_token_exp","atomic_email","atomic_tenant_id",
+     "atomic_role","atomic_is_admin"].forEach(k => localStorage.removeItem(k));
+  }
+
+  // ── Silent refresh using Cognito SDK ────────────────────────
+  function refreshSession(){
+    return new Promise((resolve, reject) => {
+      if(!COGNITO_ACTIVE){ resolve(FALLBACK_API_KEY); return; }
+      const pool = new AmazonCognitoIdentity.CognitoUserPool({
+        UserPoolId: COGNITO_POOL_ID, ClientId: COGNITO_CLIENT_ID,
+      });
+      const user = pool.getCurrentUser();
+      if(!user){ reject(new Error("No current user")); return; }
+      user.getSession((err, session) => {
+        if(err || !session || !session.isValid()){ reject(err || new Error("Invalid session")); return; }
+        const payload = session.getIdToken().decodePayload();
+        localStorage.setItem("atomic_id_token",  session.getIdToken().getJwtToken());
+        localStorage.setItem("atomic_token_exp", payload.exp);
+        resolve(session.getIdToken().getJwtToken());
+      });
+    });
+  }
+
+  // ── Public: getToken ─────────────────────────────────────────
+  async function getToken(){
+    if(!COGNITO_ACTIVE) return FALLBACK_API_KEY;
+    if(!getStoredToken()){ logout(); return null; }
+    if(isExpired()){
+      try { return await refreshSession(); }
+      catch(e){ logout(); return null; }
+    }
+    return getStoredToken();
+  }
+
+  // ── Public: getClaims ────────────────────────────────────────
+  function getClaims(){
+    if(!COGNITO_ACTIVE){
+      return { email:"admin@atomic.com", tenantId:"internal-atomic", role:"admin", isAdmin:true };
+    }
+    const token = getStoredToken();
+    if(!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const groups  = payload["cognito:groups"] || [];
+      const isAdmin = groups.includes("Admins");
+      return {
+        email:    payload.email              || "",
+        tenantId: payload["custom:tenant_id"] || "",
+        role:     payload["custom:role"]      || "client",
+        isAdmin,
+        groups,
+      };
+    } catch(e){ return null; }
+  }
+
+  // ── Public: requireAuth ──────────────────────────────────────
+  // Call on page load. Redirects to login.html if no valid session.
+  async function requireAuth(){
+    if(!COGNITO_ACTIVE){
+      return { email:"admin@atomic.com", tenantId:"internal-atomic", role:"admin", isAdmin:true };
+    }
+    const token = getStoredToken();
+    if(!token){ logout(); return null; }
+    if(isExpired()){
+      try { await refreshSession(); }
+      catch(e){ logout(); return null; }
+    }
+    return getClaims();
+  }
+
+  // ── Public: logout ───────────────────────────────────────────
+  function logout(){
+    clearSession();
+    if(COGNITO_ACTIVE){
+      try {
+        const pool = new AmazonCognitoIdentity.CognitoUserPool({
+          UserPoolId: COGNITO_POOL_ID, ClientId: COGNITO_CLIENT_ID,
+        });
+        const u = pool.getCurrentUser();
+        if(u) u.signOut();
+      } catch(e){}
+    }
+    window.location.href = "login.html";
+  }
+
+  return { getToken, getClaims, requireAuth, logout };
 })();
 </script>
 <script>
@@ -438,14 +547,11 @@ async function qfetch(path, params = {}) {
   const token = await AtomicAuth.getToken();
   if (!token) { AtomicAuth.logout(); throw new Error("Session expired"); }
 
-  // When Cognito is active, token is a JWT → use Authorization header.
-  // When using the API-key shim, token is the raw key → use X-Api-Key.
-  const isJwt = token.split(".").length === 3;
-  const headers = isJwt
-    ? { "Authorization": token }
-    : { "X-Api-Key": token };
-
-  const r = await fetch(u, { headers });
+  // Try X-Api-Key first, fall back to Authorization if 401
+  let r = await fetch(u, { headers: { "X-Api-Key": token } });
+  if (r.status === 401) {
+    r = await fetch(u, { headers: { "Authorization": token } });
+  }
   if (r.status === 401) { AtomicAuth.logout(); throw new Error("Session expired"); }
   if (r.status === 403) throw new Error("403 — not authorized");
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
@@ -909,37 +1015,51 @@ document.querySelectorAll("[data-d]").forEach(btn => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Boot — auth guard runs first, then load data
+// Boot — auth guard + role-based UI setup
 // ─────────────────────────────────────────────────────────────────
 async function boot() {
   // requireAuth redirects to login.html if no valid session
   const claims = await AtomicAuth.requireAuth();
-  if (!claims) return;   // redirecting
+  if (!claims) return;
 
   authClaims = claims;
   isAdmin    = claims.isAdmin;
 
   // Show who's logged in
-  document.getElementById("user-email").textContent = claims.email;
+  const emailEl = document.getElementById("user-email");
+  if (emailEl) emailEl.textContent = claims.email;
 
   if (isAdmin) {
-    // Admin: show the client selector + populate it
-    document.getElementById("tenant-wrap").style.display = "flex";
+    // ── ADMIN VIEW ─────────────────────────────────────────────
+    // Full dashboard: client selector visible, can view any tenant
+    const wrap = document.getElementById("tenant-wrap");
+    if (wrap) wrap.style.display = "flex";
     await loadTenants();
+
   } else {
-    // Client: lock to their own tenant, hide selector + admin-only banner
+    // ── CLIENT VIEW ────────────────────────────────────────────
+    // Locked to their own tenant. Selector hidden.
+    // tenant_id comes from the verified JWT — cannot be overridden.
     currentTenantId = claims.tenantId;
-    document.getElementById("tenant-wrap").style.display = "none";
-    // Update the brand sub to show the client context
+
+    // Hide client selector entirely
+    const wrap = document.getElementById("tenant-wrap");
+    if (wrap) wrap.style.display = "none";
+
+    // Show context banner locked to their tenant
     const ctx  = document.getElementById("tenant-ctx");
     const name = document.getElementById("tenant-ctx-name");
     if (ctx && name) {
       ctx.classList.add("visible");
       name.textContent = claims.tenantId;
-      // Hide the "view all clients" escape hatch for clients
+      // Remove the "view all clients" escape hatch for client users
       const clr = ctx.querySelector(".clear-tenant");
-      if (clr) clr.style.display = "none";
+      if (clr) clr.remove();
     }
+
+    // Rebrand subtitles for client-facing view
+    const sub = document.querySelector(".brand-sub");
+    if (sub) sub.textContent = `${claims.tenantId} · eu-central-1`;
   }
 
   await loadAll();
